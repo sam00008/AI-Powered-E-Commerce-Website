@@ -4,40 +4,41 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
+// ✅ Body parsing & cookies
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(cookieParser());
 
-// ✅ Include all frontend origins
+// ✅ Allowed origins (Frontend + Admin + Local)
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",")
-  : ["https://ai-powered-e-commerce-website-frontend-0e3m.onrender.com", "https://ai-powered-e-commerce-website-admin-xyym.onrender.com"];
+  : [
+      "https://ai-powered-e-commerce-website-frontend-0e3m.onrender.com",
+      "https://ai-powered-e-commerce-website-admin-xyym.onrender.com",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // for Postman or server-to-server
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS policy: Origin ${origin} not allowed`));
-    }
-  },
-  credentials: true, // allow cookies
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
+// ✅ CORS setup (simplified & production-safe)
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true, // allow cookies across domains
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-// Apply CORS globally
-app.use(cors(corsOptions));
+// ✅ Allow browsers to handle preflight requests properly
+app.options("*", cors());
 
-
-// Routes
+// ✅ Routes
 import authRouter from "./routes/auth.routes.js";
 app.use("/api/v1/auth", authRouter);
 
-// Default route
+// ✅ Default route
 app.get("/", (req, res) => {
-  res.send("Welcome to my Page!");
+  res.send("✅ Backend is running successfully!");
 });
 
 export default app;
