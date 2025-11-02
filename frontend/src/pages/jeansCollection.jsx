@@ -24,7 +24,7 @@ const JeansCollection = () => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:3000/api/product/admin/list");
+        const response = await fetch("https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/product/admin/list");
         if (!response.ok) throw new Error("Failed to fetch products");
 
         const data = await response.json();

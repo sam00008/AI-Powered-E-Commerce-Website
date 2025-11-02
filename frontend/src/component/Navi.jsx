@@ -46,7 +46,7 @@ function Nav({ onProtectedClick }) {
             setIsSearching(true);
             try {
                 const response = await fetch(
-                    `http://localhost:3000/api/product/search?query=${encodeURIComponent(searchTerm)}`
+                    `https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/product/search?query=${encodeURIComponent(searchTerm)}`
                 );
                 const data = await response.json();
                 
