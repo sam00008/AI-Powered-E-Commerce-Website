@@ -1,46 +1,45 @@
 // src/api.js
 import axios from "axios";
 
-const serverUrl = "http://localhost:3000";
+// 🟩 Use your Render backend URL
+const serverUrl = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
 
 const api = axios.create({
-    baseURL: `${serverUrl}/api/v1`,
-    withCredentials: true, // ✅ Always send cookies
+  baseURL: `${serverUrl}/api/v1`,
+  withCredentials: true, // ✅ Send cookies for auth/session
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// 💡 AXIOS INTERCEPTOR - This is the magic
+// 🧠 AXIOS RESPONSE INTERCEPTOR (handles expired tokens)
 api.interceptors.response.use(
-    (response) => {
-        // Any status code 2xx is fine, just return the response
-        return response;
-    },
-    async (error) => {
-        const originalRequest = error.config;
+  (response) => response, // ✅ Return successful responses as is
+  async (error) => {
+    const originalRequest = error.config;
 
-        // 1. Check if it's a 401 error and we haven't retried yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true; // Mark as retried
+    // ⚠️ If unauthorized (401) and not retried yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
 
-            try {
-                // 2. Call the refresh-token endpoint
-                await api.post("/auth/refresh-token");
-                
-                // 3. If refresh is successful, retry the original request
-                return api(originalRequest);
-                
-            } catch (refreshError) {
-                // 4. If refresh fails (e.g., refresh token expired)
-                // We must log the user out.
-                // You can redirect or just let other parts of the app fail.
-                console.error("Session expired, please log in again.");
-                // This will trigger the `getCurrentUser` catch block
-                return Promise.reject(refreshError);
-            }
-        }
+      try {
+        // 🔁 Try to refresh the token
+        await api.post("/auth/refresh-token");
 
-        // For any other error, just reject
-        return Promise.reject(error);
+        // 🔄 Retry the original request after refreshing token
+        return api(originalRequest);
+      } catch (refreshError) {
+        console.error("Session expired — please log in again.");
+        // Optionally, clear local/session storage or redirect
+        localStorage.removeItem("userData");
+        window.location.href = "/login";
+        return Promise.reject(refreshError);
+      }
     }
+
+    // ❌ For all other errors, just pass them forward
+    return Promise.reject(error);
+  }
 );
 
 export default api;
