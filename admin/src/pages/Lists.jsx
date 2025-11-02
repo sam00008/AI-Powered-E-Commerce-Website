@@ -12,7 +12,7 @@ function Lists() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/product/admin/list");
+        const res = await axios.get("https://ai-powered-e-commerce-website-backend-j6vz.onrender.com//api/product/admin/list");
         setProducts(res.data.data);
       } catch (err) {
         console.error("Error fetching products:", err);
