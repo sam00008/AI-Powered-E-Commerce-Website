@@ -18,7 +18,7 @@ export default function Checkout() {
   const totalPrice = shop?.totalPrice ?? cart.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0);
   const currency = shop?.currency ?? "₹";
   const getCartData = shop?.getCartData ?? (() => Promise.resolve());
-  const API_BASE_URL = (auth && auth.API_BASE_URL) || process.env.REACT_APP_API_BASE_URL || "http://localhost:3000/api";
+  const API_BASE_URL = (auth && auth.API_BASE_URL) || process.env.REACT_APP_API_BASE_URL || "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
   const user = (auth && auth.user) || null;
   const loadingUser = (auth && auth.loading) || false;
 
