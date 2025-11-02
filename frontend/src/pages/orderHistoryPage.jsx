@@ -20,7 +20,7 @@ const OrderHistory = () => {
 
     const fetchOrderHistory = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/order/history`, {
+        const res = await fetch(`${API_BASE_URL}/api/order/history`, {
           method: "GET",
           credentials: "include",
         });
