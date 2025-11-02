@@ -56,7 +56,7 @@ const OrderDetails = () => {
             setError('');
             try {
                 // Hitting the secure backend endpoint: e.g., http://localhost:3000/api/order/details/ID
-                const response = await fetch(`${API_BASE_URL}/order/details/${orderId}`, {
+                const response = await fetch(`${API_BASE_URL}/api/order/details/${orderId}`, {
                     method: 'GET',
                     credentials: 'include', // Ensures cookies (JWT) are sent
                     headers: { 'Content-Type': 'application/json' },
