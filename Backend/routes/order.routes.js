@@ -8,19 +8,19 @@ import {
   updateOrderStatus,
   adminGetAllOrders,
   adminDeleteOrder,
-  placeOrderRazorPay
+  placeOrderRazorPay,
 } from "../controller/order.controller.js";
 
 const router = Router();
 
-// 🛒 User Routes (Require JWT)
+//  User Routes (Require JWT)
 router.post("/place", verifyjwt, placeOrder);
-router.route("/history").get(verifyjwt, getOrderHistory);
+router.get("/history", verifyjwt, getOrderHistory);
 router.get("/details/:orderId", verifyjwt, getOrderDetails);
 router.put("/cancel/:orderId", verifyjwt, cancelOrder);
-router.put("/cancel/:orderId", verifyjwt, cancelOrder);
 router.post("/place/razorpay", verifyjwt, placeOrderRazorPay);
-// 🧑‍💼 Admin Routes (Public - No JWT required)
+
+// Admin Routes
 router.put("/status/:orderId", updateOrderStatus);
 router.get("/admin/list", adminGetAllOrders);
 router.delete("/admin/delete/:orderId", adminDeleteOrder);

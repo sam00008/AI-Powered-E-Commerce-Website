@@ -12,12 +12,12 @@ import axios from "axios"; // ✅ 1. Import axios
 axios.defaults.withCredentials = true;
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-        <ToastContainer position="top-right" autoClose={2000} />
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>
+    <StrictMode>
+        <BrowserRouter>
+            <AuthProvider>
+                <App />
+                <ToastContainer position="top-right" autoClose={2000} />
+            </AuthProvider>
+        </BrowserRouter>
+    </StrictMode>
 );
