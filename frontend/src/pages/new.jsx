@@ -17,7 +17,7 @@ function NewArrivals() {
     const fetchProducts = async () => {
       try {
         const res = await axios.get(
-          "http://localhost:3000/api/product/admin/list"
+          "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/product/admin/list"
         );
         setProducts(res.data.data || res.data);
       } catch (err) {
