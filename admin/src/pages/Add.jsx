@@ -74,7 +74,8 @@ function Add() {
         form.append(key, file);
       });
 
-      const res = await fetch("http://localhost:3000/api/product/addproduct", {
+      // ✅ Updated backend URL
+      const res = await fetch("https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/product/addproduct", {
         method: "POST",
         body: form,
         credentials: "include",
