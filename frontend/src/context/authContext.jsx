@@ -17,7 +17,7 @@ const AuthContextProvider = ({ children }) => {
         const checkUserStatus = async () => {
             try {
                 // Correct URL structure: http://localhost:3000/api/v1/auth/current-user
-                const res = await fetch(`${API_BASE_URL}/v1/auth/current-user`, {
+                const res = await fetch(`${API_BASE_URL}/api/v1/auth/current-user`, {
                     method: "GET",
                     credentials: "include", // ESSENTIAL for sending the HTTP-only cookie
                 });
