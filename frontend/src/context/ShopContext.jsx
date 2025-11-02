@@ -9,7 +9,7 @@ function ShopContext({ children }) {
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(false);
     const currency = "₹";
-    const API_BASE_URL = "http://localhost:3000/api"; // Adjust port if needed
+    const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api"; // Adjust port if needed
 
     // ✅ Fetch products (kept for product listing)
     useEffect(() => {
