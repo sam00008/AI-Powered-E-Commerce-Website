@@ -18,7 +18,11 @@ export default function Checkout() {
   const totalPrice = shop?.totalPrice ?? cart.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0);
   const currency = shop?.currency ?? "₹";
   const getCartData = shop?.getCartData ?? (() => Promise.resolve());
+    
+    // API_BASE_URL should contain only the domain (e.g., https://...onrender.com)
+    // The specific API path prefix (/api/v1/auth or /api/order) is added in the makeUrl helper below.
   const API_BASE_URL = (auth && auth.API_BASE_URL) || process.env.REACT_APP_API_BASE_URL || "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
+    
   const user = (auth && auth.user) || null;
   const loadingUser = (auth && auth.loading) || false;
 
@@ -42,8 +46,9 @@ export default function Checkout() {
   const [error, setError] = useState("");
 
   // helper: build endpoint URL
+  // This helper now expects the *full* path including the /api/ prefix.
   const makeUrl = (path) => {
-    return `${API_BASE_URL.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+    return `${API_BASE_URL.replace(/\/+$/, "")}${path.replace(/^\/*/, "/")}`;
   };
 
   const isAddressComplete = useCallback(() => {
@@ -55,7 +60,8 @@ export default function Checkout() {
     let mounted = true;
     const loadAddress = async () => {
       try {
-        const url = makeUrl("/user/address");
+        // ✅ CORRECTION: Changed path to match app.use("/api/v1/auth", authRouter);
+        const url = makeUrl("/api/v1/auth/address");
         const token = localStorage.getItem("token");
         const opts = token
           ? { headers: { Authorization: `Bearer ${token}` } }
@@ -82,7 +88,8 @@ export default function Checkout() {
   // Save address to backend for reuse
   const saveAddressToServer = async (address) => {
     try {
-      const url = makeUrl("/user/save-address");
+      // ✅ CORRECTION: Changed path to match app.use("/api/v1/auth", authRouter);
+      const url = makeUrl("/api/v1/auth/save-address");
       const token = localStorage.getItem("token");
       const opts = token
         ? {
@@ -141,7 +148,8 @@ export default function Checkout() {
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
       if (paymentMethod === "COD") {
-        const res = await fetch(makeUrl("/order/place"), {
+        // ✅ CORRECTION: Changed path to match app.use("/api/order", orderRouter);
+        const res = await fetch(makeUrl("/api/order/place"), {
           method: "POST",
           credentials: token ? undefined : "include",
           headers: { "Content-Type": "application/json", ...authHeaders },
@@ -172,7 +180,8 @@ export default function Checkout() {
         throw new Error("Failed to load payment gateway. Try again later.");
       }
 
-      const res = await fetch(makeUrl("/order/place/razorpay"), {
+      // ✅ CORRECTION: Changed path to match app.use("/api/order", orderRouter); + route in order.routes.js
+      const res = await fetch(makeUrl("/api/order/place/razorpay"), {
         method: "POST",
         credentials: token ? undefined : "include",
         headers: { "Content-Type": "application/json", ...authHeaders },
@@ -187,8 +196,8 @@ export default function Checkout() {
       if (!res.ok) {
         throw new Error(razorpayBody?.message || `Failed to initiate payment (status ${res.status})`);
       }
-      
-      const tempOrderId = razorpayBody?.data?._id; // Initial Order ID from Razorpay setup
+      
+      const tempOrderId = razorpayBody?.data?._id; // Initial Order ID from Razorpay setup
 
       // body.data must include { key, amount, razorpayOrderId, currency }
       const { key, amount, razorpayOrderId, currency: respCurrency } = razorpayBody.data || {};
@@ -207,7 +216,8 @@ export default function Checkout() {
         handler: async function (response) {
           // This function executes only on SUCCESSFUL PAYMENT
           try {
-            const verifyRes = await fetch(makeUrl("/order/verify-payment"), {
+            // ✅ CORRECTION: Changed path to match app.use("/api/order", orderRouter); + assumed route
+            const verifyRes = await fetch(makeUrl("/api/order/verify-payment"), {
               method: "POST",
               credentials: token ? undefined : "include",
               headers: { "Content-Type": "application/json", ...authHeaders },
@@ -223,11 +233,11 @@ export default function Checkout() {
             if (typeof getCartData === "function") await getCartData();
 
             toast && toast.success ? toast.success("Payment successful — Order confirmed") : toast("Payment successful — Order confirmed");
-            
-            // ✅ ONLINE PAYMENT NAVIGATION: Get final Order ID and redirect
-            const finalOrderId = verifyBody?.data?._id || tempOrderId || "";
+            
+            // ✅ ONLINE PAYMENT NAVIGATION: Get final Order ID and redirect
+            const finalOrderId = verifyBody?.data?._id || tempOrderId || "";
             navigate(`/order/success/${finalOrderId}`); 
-            
+            
           } catch (err) {
             console.error("Payment verification error:", err);
             toast && toast.error ? toast.error(err.message || "Payment verification failed") : null;
