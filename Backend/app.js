@@ -11,7 +11,7 @@ app.use(cookieParser());
 // ✅ Include all frontend origins
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",")
-  : ["http://localhost:5173", "http://localhost:5174"];
+  : ["https://ai-powered-e-commerce-website-frontend-0e3m.onrender.com", "http://localhost:5174"];
 
 const corsOptions = {
   origin: (origin, callback) => {
