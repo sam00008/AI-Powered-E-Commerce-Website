@@ -33,9 +33,9 @@ const corsOptions = {
 
 // ✅ Apply CORS
 app.use(cors(corsOptions));
-app.options("/(.*)", cors(corsOptions)); // <-- FIXED LINE
+app.options("*", cors(corsOptions)); // ✅ FIXED LINE
 
-// ✅ Import Routes
+// ✅ Routes
 import authRouter from "./routes/auth.routes.js";
 app.use("/api/v1/auth", authRouter);
 
@@ -45,7 +45,7 @@ app.get("/", (req, res) => {
 });
 
 // ✅ Catch-All 404 Route
-app.use("/*", (req, res) => {
+app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
