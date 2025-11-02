@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Trash2, Edit } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // ✅ import navigate
+import { useNavigate } from "react-router-dom";
+
+// 🔹 Base URL setup: Automatically switch between local and production
+const BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
 
 function Lists() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // ✅ initialize navigate
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axios.get("https://ai-powered-e-commerce-website-backend-j6vz.onrender.com//api/product/admin/list");
+        const res = await axios.get(`${BASE_URL}/api/product/admin/list`, {
+          withCredentials: true,
+        });
         setProducts(res.data.data);
       } catch (err) {
         console.error("Error fetching products:", err);
-        setError("⚠️ Could not fetch products. Check backend on port 3000.");
+        setError("⚠️ Could not fetch products. Check backend or CORS config.");
       } finally {
         setLoading(false);
       }
@@ -27,8 +32,10 @@ function Lists() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
-      await axios.delete(`http://localhost:3000/api/product/product/${id}`);
-      setProducts(products.filter((p) => p._id !== id));
+      await axios.delete(`${BASE_URL}/api/product/product/${id}`, {
+        withCredentials: true,
+      });
+      setProducts((prev) => prev.filter((p) => p._id !== id));
     } catch (err) {
       console.error(err);
       alert("Failed to delete product");
@@ -36,7 +43,7 @@ function Lists() {
   };
 
   const handleEdit = (id) => {
-    navigate(`/update/${id}`); // ✅ navigate to Update page
+    navigate(`/update/${id}`);
   };
 
   return (
@@ -66,7 +73,11 @@ function Lists() {
               {products.map((p) => (
                 <tr key={p._id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
-                    <img src={p.image1} alt={p.name} className="w-14 h-14 object-cover rounded" />
+                    <img
+                      src={p.image1}
+                      alt={p.name}
+                      className="w-14 h-14 object-cover rounded"
+                    />
                   </td>
                   <td className="py-3 px-4">{p.name}</td>
                   <td className="py-3 px-4">₹{p.price}</td>
@@ -80,7 +91,7 @@ function Lists() {
                       <Trash2 size={16} />
                     </button>
                     <button
-                      onClick={() => handleEdit(p._id)} // ✅ navigate instead of prompt
+                      onClick={() => handleEdit(p._id)}
                       className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
                       <Edit size={16} />
