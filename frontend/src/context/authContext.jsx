@@ -6,7 +6,7 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 export const authDataContext = createContext();
 
 // Define the API URL (Standard practice to keep base URLs centralized)
-const API_BASE_URL = "http://localhost:3000/api";
+const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
 
 // Context provider component
 const AuthContextProvider = ({ children }) => {
