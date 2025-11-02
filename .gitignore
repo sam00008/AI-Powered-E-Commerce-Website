@@ -1,0 +1,62 @@
+# -----------------------
+# 📦 Node.js dependencies
+# -----------------------
+node_modules/
+
+# -----------------------
+# ⚙️ Environment files
+# -----------------------
+.env
+.env.local
+.env.*.local
+
+# -----------------------
+# 🧪 Logs
+# -----------------------
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# -----------------------
+# 🧱 Build outputs
+# -----------------------
+dist/
+build/
+out/
+
+# -----------------------
+# 🧩 Test & Coverage
+# -----------------------
+coverage/
+*.tmp
+tmp/
+
+# -----------------------
+# 🧰 OS / IDE files
+# -----------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# -----------------------
+# 🔒 Package manager lock files (optional)
+# Uncomment if you don’t want to commit lock files
+# -----------------------
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# -----------------------
+# 💡 Misc
+# -----------------------
+*.local

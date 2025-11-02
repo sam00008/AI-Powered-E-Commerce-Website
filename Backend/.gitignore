@@ -1,4 +1,4 @@
-# Node modules (dependencies)
+# Node modules
 node_modules/
 
 # Environment variables
@@ -17,20 +17,17 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Coverage directory (from tests)
+# Test coverage
 coverage/
 
 # Temporary files
 tmp/
 *.tmp
 
-# Build output (if using a build tool)
+# Build output
 dist/
 build/
 
-# IDE-specific files
+# IDE-specific
 .vscode/
 .idea/
-
-# Misc
-package-lock.json
