@@ -35,9 +35,11 @@ app.use(cors(corsOptions));
 import authRouter from "./routes/auth.routes.js";
 import productRouter from "./routes/product.routes.js";
 import orderRouter from "./routes/order.routes.js";
+import cartRouter from "./routes/cart.route.js";
 app.use("/api/v1/auth", authRouter);
 app.use("/api/product", productRouter);
 app.use("/api/order", orderRouter);
+app.use("/api/cart", cartRouter);
 
 // Default route
 app.get("/", (req, res) => {
