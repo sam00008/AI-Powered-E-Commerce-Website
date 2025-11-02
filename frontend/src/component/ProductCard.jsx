@@ -38,7 +38,7 @@ const ProductCard = ({ product, currency = "₹" }) => {
         product.colors ? product.colors[0] : null
     );
     const [loading, setLoading] = useState(false);
-    const API_BASE_URL = "http://localhost:3000/api"; // Adjust port if needed
+    const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api"; // Adjust port if needed
 
     const displayImage =
         product.image1 ||
