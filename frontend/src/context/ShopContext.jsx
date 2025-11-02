@@ -73,8 +73,29 @@ function ShopContext({ children }) {
 
     // ✅ addToCart: Now just triggers a refresh, as the API call is in ProductCard
     const addToCart = async (product) => {
-        // The ProductCard handles the API call to add the item.
-        // We just need to ensure the local state is refreshed.
+        try {
+        const res = await fetch(`${API_BASE_URL}/cart/addcart`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: product._id, quantity: 1 }),
+        });
+
+        if (!res.ok) {
+            if (res.status === 401) {
+                alert("Please log in to add items to your cart.");
+                return;
+            }
+            throw new Error("Failed to add product to cart");
+        }
+
+        // Refresh cart after adding
+        await getCartData();
+
+    } catch (error) {
+        console.error("Error adding to cart:", error);
+        alert("Error adding to cart. Please try again later.");
+    }
         await getCartData(); 
     };
 
