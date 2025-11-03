@@ -89,7 +89,7 @@ export default function Checkout() {
   const saveAddressToServer = async (address) => {
     try {
       // ✅ CORRECTION: Changed path to match app.use("/api/v1/auth", authRouter);
-      const url = makeUrl("/api/v1/auth/save-address");
+      const url = makeUrl("/api/v1/auth");
       const token = localStorage.getItem("token");
       const opts = token
         ? {
@@ -149,7 +149,7 @@ export default function Checkout() {
 
       if (paymentMethod === "COD") {
         // ✅ CORRECTION: Changed path to match app.use("/api/order", orderRouter);
-        const res = await fetch(makeUrl("/api/order/place"), {
+        const res = await fetch(makeUrl("/api/order"), {
           method: "POST",
           credentials: token ? undefined : "include",
           headers: { "Content-Type": "application/json", ...authHeaders },
@@ -181,7 +181,7 @@ export default function Checkout() {
       }
 
       // ✅ CORRECTION: Changed path to match app.use("/api/order", orderRouter); + route in order.routes.js
-      const res = await fetch(makeUrl("/api/order/place/razorpay"), {
+      const res = await fetch(makeUrl("/api/order"), {
         method: "POST",
         credentials: token ? undefined : "include",
         headers: { "Content-Type": "application/json", ...authHeaders },
@@ -217,7 +217,7 @@ export default function Checkout() {
           // This function executes only on SUCCESSFUL PAYMENT
           try {
             // ✅ CORRECTION: Changed path to match app.use("/api/order", orderRouter); + assumed route
-            const verifyRes = await fetch(makeUrl("/api/order/verify-payment"), {
+            const verifyRes = await fetch(makeUrl("/api/order"), {
               method: "POST",
               credentials: token ? undefined : "include",
               headers: { "Content-Type": "application/json", ...authHeaders },
