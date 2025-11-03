@@ -237,8 +237,10 @@ export default function Checkout() {
                         toast && toast.success ? toast.success("Payment successful — Order confirmed") : toast("Payment successful — Order confirmed");
 
                         // ✅ ONLINE PAYMENT NAVIGATION: Get final Order ID and redirect
-                        const finalOrderId = verifyBody?.data?._id || tempOrderId || "";
-                        navigate(`/order/success/${finalOrderId}`);
+                    const finalOrderId = verifyBody?.data?._id || tempOrderId || "";
+                
+                // Ensure navigate redirects to your specified route: /order/success/:orderId
+                navigate(`/order/success/${finalOrderId}`);
 
                     } catch (err) {
                         console.error("Payment verification error:", err);
