@@ -61,7 +61,7 @@ export default function Checkout() {
     const loadAddress = async () => {
       try {
         // ✅ CORRECTION: Changed path to match app.use("/api/v1/auth", authRouter);
-        const url = makeUrl("/api/v1/auth/address");
+        const url = makeUrl("/api/v1/auth");
         const token = localStorage.getItem("token");
         const opts = token
           ? { headers: { Authorization: `Bearer ${token}` } }
