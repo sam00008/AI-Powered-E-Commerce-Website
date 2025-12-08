@@ -3,11 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import GravityLogo from "../assets/Gravity.png";
 import { LuEyeClosed } from "react-icons/lu";
 import { IoEyeOutline } from "react-icons/io5";
-import { authDataContext } from "../context/authContext.jsx";
+import { UserDataContext } from "../context/UserContext.jsx";
+import api from "../api.js"; 
 import { UserDataContext } from "../context/UserContext.jsx";
 
 function Registration() {
-  const { setUserData, userData } = useContext(UserDataContext);
+  const { setUserData, userData,loading } = useContext(UserDataContext);
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -18,8 +19,10 @@ function Registration() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    if (userData) navigate("/");
-  }, [userData, navigate]);
+    if (!loading && userData) {
+        navigate("/");
+    }
+}, [userData, loading, navigate]);
 
   const handleSignup = async (e) => {
     e.preventDefault();
