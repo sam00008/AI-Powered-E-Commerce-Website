@@ -150,66 +150,51 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // --- REFRESH ACCESS TOKEN CONTROLLER ---
 const refreshAccessToken = asyncHandler(async (req, res) => {
-    // 1. Get refresh token from cookies
+
     const incomingRefreshToken = req.cookies?.refreshToken;
 
     if (!incomingRefreshToken) {
-        // Also clear the access token if refresh token is missing (prevents infinite loop)
         res.clearCookie("accessToken", cookieOptions);
-        throw new ApiError(401, "Unauthorized: No refresh token provided");
+        res.clearCookie("refreshToken", cookieOptions);
+        throw new ApiError(401, "Refresh token not found");
     }
 
     try {
-        // 2. Verify the refresh token
-        const decodedToken = jwt.verify(
+        const decoded = jwt.verify(
             incomingRefreshToken,
             process.env.REFRESH_TOKEN_SECRET
         );
 
-        // 3. Find user in DB
-        const user = await User.findById(decodedToken._id);
-        if (!user) {
-            throw new ApiError(401, "Invalid refresh token: User not found");
-        }
+        const user = await User.findById(decoded._id);
 
-        // 4. Security Check: Compare cookie token with DB token
-        if (incomingRefreshToken !== user.refreshToken) {
-            // Token hijacking attempt or forced logout: clear old tokens from browser
+        if (!user || user.refreshToken !== incomingRefreshToken) {
             res.clearCookie("accessToken", cookieOptions);
             res.clearCookie("refreshToken", cookieOptions);
-            // This is a major security breach, we should clear the token in DB too if possible
-            await User.findByIdAndUpdate(user._id, { $set: { refreshToken: null } });
-            throw new ApiError(401, "Refresh token mismatch: Session revoked.");
+            throw new ApiError(401, "Invalid Refresh Token");
         }
 
-        // 5. Generate a new access token (only)
         const newAccessToken = jwt.sign(
             { _id: user._id },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
+            { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "15m" }
         );
 
-        // 6. Set the new access token cookie
-        const accessTokenExpiryMs = ms(process.env.ACCESS_TOKEN_EXPIRY || "15m");
         res.cookie("accessToken", newAccessToken, {
             ...cookieOptions,
-            maxAge: accessTokenExpiryMs
+            maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY || "15m")
         });
 
-        // 7. Send user data back (optional, but useful for frontend state)
-        const userData = await User.findById(user._id).select("-password -refreshToken");
         return res.status(200).json(
-            new ApiResponse(200, { user: userData, accessToken: newAccessToken }, "Access token refreshed")
+            new ApiResponse(200, { accessToken: newAccessToken }, "New access token generated")
         );
 
     } catch (error) {
-        // Clear all cookies if verification fails (token expired/invalid signature)
         res.clearCookie("accessToken", cookieOptions);
         res.clearCookie("refreshToken", cookieOptions);
-        console.error("REFRESH TOKEN FAILED:", error.message);
-        throw new ApiError(401, "Invalid or expired refresh token. Please log in again.");
+        throw new ApiError(401, "Invalid or expired refresh token");
     }
 });
+
 
 
 // --- LOGOUT USER (Requires verifyjwt middleware) ---
