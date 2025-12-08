@@ -20,8 +20,23 @@ import KidsCollection from "./pages/kidsCollection.jsx";
 import Ai from "./component/Ai.jsx";
 import TshirtCollection from "./pages/t-shirtCollection.jsx";
 import ShirtCollection from "./pages/shirtCollection.jsx";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 function App() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleLogout = () => {
+      navigate("/login", { replace: true });
+    };
+
+    window.addEventListener("app:logout", handleLogout);
+
+    return () => {
+      window.removeEventListener("app:logout", handleLogout);
+    };
+  }, [navigate]);
   return (
     <>
       <Routes>

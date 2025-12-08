@@ -39,11 +39,13 @@ api.interceptors.response.use(
         // 5. If refresh succeeded, retry the original failed request
         return api(originalRequest);
       } catch (refreshError) {
-  console.error("Session expired. Redirecting to login");
-  window.location.href = "/login";   // ADD THIS ✅
+  console.error("Session expired.");
+
+  localStorage.clear();
+  window.dispatchEvent(new Event("app:logout"));
+
   return Promise.reject(refreshError);
 }
-
     }
 
     // Return all other errors (so your components can show alerts)
