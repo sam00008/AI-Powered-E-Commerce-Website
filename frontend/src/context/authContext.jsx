@@ -1,0 +1,1 @@
+export { UserDataContext as authDataContext } from "./UserContext.jsx";
