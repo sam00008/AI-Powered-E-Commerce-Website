@@ -95,7 +95,7 @@ function Registration() {
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.gitt.value)}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             className="w-full border border-gray-300 rounded-sm p-2 focus:outline-none focus:ring-1 focus:ring-[#fd7f20]"
             required

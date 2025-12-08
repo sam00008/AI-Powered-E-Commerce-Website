@@ -15,8 +15,8 @@ router.route("/addproduct").post(
 );
 
 router.route("/admin/list").get(listProduct);
-router.route("/product/:id").delete(removeProduct);
-router.route("/product/:id").put(
+router.route("/:id").delete(removeProduct);
+router.route("/:id").put(
     upload.fields([
         { name: "image1", maxCount: 1 },
         { name: "image2", maxCount: 1 },
