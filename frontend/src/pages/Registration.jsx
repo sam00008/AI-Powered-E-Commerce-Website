@@ -7,8 +7,6 @@ import { authDataContext } from "../context/authContext.jsx";
 import { UserDataContext } from "../context/UserContext.jsx";
 
 function Registration() {
-  const { serverUrl } = useContext(authDataContext);
-  // ✅ Removed getCurrentUser, as we'll get user data from the response
   const { setUserData, userData } = useContext(UserDataContext);
   const navigate = useNavigate();
 
@@ -19,7 +17,6 @@ function Registration() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (userData) navigate("/");
   }, [userData, navigate]);
@@ -32,33 +29,21 @@ function Registration() {
     }
 
     try {
-      const res = await fetch(`${serverUrl}/api/v1/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // ✅ Correct: This sends/receives cookies
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await res.json(); // ✅ Always parse the JSON response
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to register");
-      }
-
-      // ✅ Set user context immediately from the registration response
-      if (data?.data?.user) {
-        setUserData(data.data.user);
-      }
-
-      // 🛑 Removed: await getCurrentUser(); (This is no longer needed)
+      // ✅ Use api.post
+      const res = await api.post("/auth/register", { name, email, password });
       
-      alert("Registration successful!");
-      navigate("/"); // redirect to home
+      if (res.data?.data?.user) {
+        setUserData(res.data.data.user);
+        alert("Registration successful!");
+        navigate("/");
+      }
     } catch (error) {
       console.error(error);
-      alert(error.message || "Something went wrong.");
+      const msg = error.response?.data?.message || "Registration failed";
+      alert(msg);
     }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative">
