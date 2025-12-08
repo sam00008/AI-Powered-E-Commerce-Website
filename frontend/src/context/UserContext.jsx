@@ -9,31 +9,24 @@ function UserContextProvider({ children }) {
 
   // 1. Wrap getCurrentUser in useCallback to stabilize it
   const getCurrentUser = useCallback(async () => {
-    // We set loading to true here to ensure any component consuming the context
-    // knows we are checking the session status.
-    setLoading(true); 
-    
-    try {
-      // Use the configured api instance (which includes the refresh token logic)
-      const res = await api.get("/auth/current-user"); 
+  // Only set loading TRUE if userData is not already known
+  if (!userData) setLoading(true);
 
-      if (res.data?.data?.user) {
-        setUserData(res.data.data.user);
-      } else {
-        // This should theoretically be unreachable if the interceptor works, 
-        // but it's safe to keep.
-        setUserData(null);
-      }
-    } catch (error) {
-      // The interceptor handles the 401 redirect, 
-      // but if the interceptor fails or logs out, we still ensure local state is null.
-      console.log("Not logged in or session check failed.");
+  try {
+    const res = await api.get("/auth/current-user");
+
+    if (res.data?.data?.user) {
+      setUserData(res.data.data.user);
+    } else {
       setUserData(null);
-    } finally {
-      // 2. Crucial: Always set loading to false in finally block
-      setLoading(false); 
     }
-  }, []); // Empty dependency array ensures this function is created once
+  } catch (error) {
+    console.log("Not logged in or session check failed.");
+    setUserData(null);
+  } finally {
+    setLoading(false);
+  }
+}, [userData]); // Empty dependency array ensures this function is created once
 
   const logout = async () => {
     try {

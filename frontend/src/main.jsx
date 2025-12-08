@@ -9,13 +9,13 @@ import ShopContext from "./context/ShopContext.jsx";
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthContextProvider>
+    
         <UserContextProvider>
           <ShopContext>
             <App />
           </ShopContext>
         </UserContextProvider>
-      </AuthContextProvider>
+      
     </BrowserRouter>
   </React.StrictMode>
 );

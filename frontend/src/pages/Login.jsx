@@ -12,7 +12,7 @@ import { UserDataContext } from "../context/UserContext.jsx";
 function Login() {
   // 🛑 3. No serverUrl needed
   // const { serverUrl } = useContext(authDataContext);
-  const { userData, setUserData } = useContext(UserDataContext);
+  const { userData, setUserData, loading } = useContext(UserDataContext);
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -20,9 +20,11 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if already logged in
-  useEffect(() => {
-    if (userData) navigate("/");
-  }, [userData, navigate]);
+useEffect(() => {
+  if (!loading && userData) {
+    navigate("/", { replace: true });
+  }
+}, [userData, loading]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

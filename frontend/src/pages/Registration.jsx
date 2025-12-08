@@ -5,7 +5,7 @@ import { LuEyeClosed } from "react-icons/lu";
 import { IoEyeOutline } from "react-icons/io5";
 import { UserDataContext } from "../context/UserContext.jsx";
 import api from "../api.js"; 
-import { UserDataContext } from "../context/UserContext.jsx";
+
 
 function Registration() {
   const { setUserData, userData,loading } = useContext(UserDataContext);
@@ -18,11 +18,11 @@ function Registration() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  useEffect(() => {
-    if (!loading && userData) {
-        navigate("/");
-    }
-}, [userData, loading, navigate]);
+useEffect(() => {
+  if (!loading && userData) {
+    navigate("/", { replace: true });
+  }
+}, [userData, loading]);
 
   const handleSignup = async (e) => {
     e.preventDefault();

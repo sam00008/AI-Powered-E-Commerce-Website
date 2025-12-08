@@ -39,15 +39,11 @@ api.interceptors.response.use(
         // 5. If refresh succeeded, retry the original failed request
         return api(originalRequest);
       } catch (refreshError) {
-        // 6. If refresh fails (token invalid/expired), log the user out
-        console.error("Session expired. Redirecting to login.");
-        
-        // Clear local storage if you use it for UI state (optional)
-        // localStorage.removeItem("userData"); 
-        
-        // Redirect to login page
-        return Promise.reject(refreshError);
-      }
+  console.error("Session expired. Redirecting to login");
+  window.location.href = "/login";   // ADD THIS ✅
+  return Promise.reject(refreshError);
+}
+
     }
 
     // Return all other errors (so your components can show alerts)
