@@ -6,7 +6,8 @@ import { IoEyeOutline } from "react-icons/io5";
 import { authDataContext } from "../context/AuthProvider.jsx";
 
 function AdminLogin() {
-  const { serverUrl } = useContext(authDataContext);
+  // 1. Use loginAdmin function from context
+  const { serverUrl, loginAdmin, adminData } = useContext(authDataContext);
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -15,33 +16,28 @@ function AdminLogin() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("AccessToken="));
-    if (token) navigate("/dashboard");
-  }, [navigate]);
+    // 2. Check adminData from context instead of reading raw cookies
+    if (adminData) navigate("/dashboard");
+  }, [navigate, adminData]); // Depend on adminData change
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch(`${serverUrl}/api/v1/auth/admin/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
+      // 3. Use the unified login logic from AuthProvider (which handles Axios/fetch and error messages)
+      const success = await loginAdmin(email, password);
 
-      const data = await res.json(); // directly parse JSON
+      if (success) {
+        // If AuthProvider shows success (and handles toast message)
+        navigate("/dashboard");
+      }
+      // Else, loginAdmin handled the error (e.g., toast.error)
 
-      if (!res.ok) throw new Error(data.message || "Admin login failed");
-
-      alert("Admin Login Successful!");
-      navigate("/dashboard");
     } catch (error) {
-      console.error("Admin login error:", error);
-      alert(error.message || "Something went wrong.");
+      // This catch block might not fire if loginAdmin handles the error internally
+      console.error("Unexpected login error:", error);
+      alert("An unexpected error occurred during login.");
     } finally {
       setLoading(false);
     }
@@ -103,9 +99,8 @@ function AdminLogin() {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full bg-[#fd7f20] hover:bg-[#fc2e20] text-white text-sm font-medium py-2 rounded-sm transition duration-300 ${
-              loading ? "opacity-70 cursor-not-allowed" : ""
-            }`}
+            className={`w-full bg-[#fd7f20] hover:bg-[#fc2e20] text-white text-sm font-medium py-2 rounded-sm transition duration-300 ${loading ? "opacity-70 cursor-not-allowed" : ""
+              }`}
           >
             {loading ? "Signing in..." : "Sign in as Admin"}
           </button>
