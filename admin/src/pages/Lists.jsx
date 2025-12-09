@@ -3,7 +3,7 @@ import axios from "axios";
 import { Trash2, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-// 🔹 Base URL setup: Automatically switch between local and production
+// 🔹 Base URL setup
 const BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
 
 function Lists() {
@@ -15,13 +15,15 @@ function Lists() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        // ✅ FETCH ROUTE: This path is correct: /api/product/admin/list
         const res = await axios.get(`${BASE_URL}/api/product/admin/list`, {
           withCredentials: true,
         });
         setProducts(res.data.data);
       } catch (err) {
         console.error("Error fetching products:", err);
-        setError("⚠️ Could not fetch products. Check backend or CORS config.");
+        // If this fails, it's likely a 401 (unauthorized/no JWT) or the CORS fix failed.
+        setError("⚠️ Could not fetch products. Check backend security or CORS config.");
       } finally {
         setLoading(false);
       }
@@ -32,18 +34,24 @@ function Lists() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
-      await axios.delete(`${BASE_URL}/api/product/product/${id}`, {
+      // ❌ PROBLEM FIX: Removed the redundant "/product" from the path. 
+      // Corrected Backend path is: /api/product/:id
+      await axios.delete(`${BASE_URL}/api/product/${id}`, { 
         withCredentials: true,
       });
       setProducts((prev) => prev.filter((p) => p._id !== id));
     } catch (err) {
       console.error(err);
-      alert("Failed to delete product");
+      // The error is likely a 401 or 403 because you added verifyjwt to the backend.
+      alert("Failed to delete product. Are you logged in as Admin?");
     }
   };
 
   const handleEdit = (id) => {
-    navigate(`/update/${id}`);
+    // 💡 POTENTIAL FIX: The backend uses /api/product/get/:id for details (if you implemented the suggested change). 
+    // The update form needs to fetch data first, so the path should be correct for that.
+    // Assuming your update form loads data using the /get/:id route:
+    navigate(`/update/${id}`); // This path is for the client-side router (e.g., /update/123)
   };
 
   return (
