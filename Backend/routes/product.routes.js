@@ -1,6 +1,6 @@
 import { Router } from "express";
 import upload from "../middleware/muter.middleware.js";
-import { verifyjwt } from "../middleware/auth.middleware.js";
+
 import { 
     addProduct, 
     getProduct, 
@@ -20,11 +20,11 @@ const router = Router();
 router.route("/search").get(searchProduct);
 
 // Admin List (Specific static path, protected)
-router.route("/admin/list").get(verifyjwt, listProduct);
+router.route("/admin/list").get( listProduct);
 
 // Add Product (Specific static path, protected)
 router.route("/addproduct").post(
-    verifyjwt,
+    
     upload.fields([
         {name: "image1", maxCount: 1},
         {name: "image2", maxCount: 1},
@@ -42,11 +42,11 @@ router.route("/category/:id").get(getProduct);
 // =======================================================
 
 // Delete Product by ID (Generic dynamic path, protected)
-router.route("/:id").delete(verifyjwt, removeProduct);
+router.route("/:id").delete( removeProduct);
 
 // Update Product by ID (Generic dynamic path, protected)
 router.route("/:id").put(
-    verifyjwt,
+    
     upload.fields([
         { name: "image1", maxCount: 1 },
         { name: "image2", maxCount: 1 },

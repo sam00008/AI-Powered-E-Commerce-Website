@@ -2,7 +2,7 @@
 import React, { useState, useContext } from "react";
 import { FiUser } from "react-icons/fi";
 import { LogOut } from "lucide-react"; // Using lucide-react for a modern icon
-import { authDataContext } from "../context/AuthProvider"; // 👈 Import the context
+import { authDataContext } from "../context/AuthProvider.jsx"; // 👈 Import the context
 
 function Nav() {
     // State to toggle the dropdown menu visibility

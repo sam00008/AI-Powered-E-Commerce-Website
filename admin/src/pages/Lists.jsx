@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
 import { Trash2, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { authDataContext } from "../context/AuthProvider"; // 👈 Import the context
+import { authDataContext } from "../context/AuthProvider.jsx"; // 👈 Import the context
 
 function Lists() {
     // 1. Get Authentication State from Context

@@ -21,8 +21,8 @@ router.put("/cancel/:orderId", verifyjwt, cancelOrder);
 router.post("/place/razorpay", verifyjwt, placeOrderRazorPay);
 
 // Admin Routes
-router.put("/status/:orderId", updateOrderStatus);
-router.get("/admin/list", adminGetAllOrders);
-router.delete("/admin/delete/:orderId", adminDeleteOrder);
+router.put("/status/:orderId",verifyjwt, updateOrderStatus);
+router.get("/admin/list",verifyjwt, adminGetAllOrders);
+router.delete("/admin/delete/:orderId",verifyjwt, adminDeleteOrder);
 
 export default router;
