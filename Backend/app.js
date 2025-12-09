@@ -13,9 +13,7 @@ app.use(cookieParser());
 // specific origins are safer for credentials
 const allowedOrigins = [
   "https://ai-powered-e-commerce-website-frontend-0e3m.onrender.com",
-  "http://localhost:5173", // Vite default
-  "http://localhost:5174",
-  "http://localhost:3000"
+  "https://ai-powered-e-commerce-website-admin-xyym.onrender.com/",
 ];
 
 app.use(cors({
