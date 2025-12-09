@@ -6,8 +6,8 @@ import { IoEyeOutline } from "react-icons/io5";
 import { authDataContext } from "../context/AuthProvider.jsx";
 
 function AdminLogin() {
-  // 1. Use loginAdmin function from context
-  const { serverUrl, loginAdmin, adminData } = useContext(authDataContext);
+  // ... unchanged state and context hooks ...
+  const { loginAdmin, adminData } = useContext(authDataContext);
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -15,34 +15,30 @@ function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Redirect if already logged in
   useEffect(() => {
-    // 2. Check adminData from context instead of reading raw cookies
     if (adminData) navigate("/dashboard");
-  }, [navigate, adminData]); // Depend on adminData change
+  }, [navigate, adminData]);
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 3. Use the unified login logic from AuthProvider (which handles Axios/fetch and error messages)
+      // Calls the unified login function from the context
       const success = await loginAdmin(email, password);
 
       if (success) {
-        // If AuthProvider shows success (and handles toast message)
         navigate("/dashboard");
       }
-      // Else, loginAdmin handled the error (e.g., toast.error)
-
     } catch (error) {
-      // This catch block might not fire if loginAdmin handles the error internally
+      // This block handles true unexpected errors (like network drop, not auth failure handled by context)
       console.error("Unexpected login error:", error);
-      alert("An unexpected error occurred during login.");
+      alert("An unexpected error occurred during login."); // Fallback alert
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative">
       <div

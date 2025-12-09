@@ -153,6 +153,16 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {}, "Password reset successfully"));
 });
 
+const getCookieMaxAge = (expiry) => {
+    // Converts time string (e.g., "7d") to milliseconds for the cookie's maxAge property
+    try {
+        return ms(expiry);
+    } catch (e) {
+        console.error("Error converting expiry string:", expiry, e);
+        return 0;
+    }
+};
+
 // --- ADMIN LOGIN ---
 // --- ADMIN LOGIN ---
 const adminLogin = asyncHandler(async (req, res) => {
@@ -173,7 +183,7 @@ const adminLogin = asyncHandler(async (req, res) => {
     const token = jwt.sign(tokenPayload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: expiry });
 
     // 3. Set the long-lived token in an HTTP-only cookie
-    res.cookie("accessToken", token, { ...cookieOptions, maxAge: getCookieMaxAge(expiry) });
+    res.cookie("accessToken", token, { ...cookieOptions, maxAge: getCookieMaxAge(expiry) }); // ✅ Fixed dependency
 
     // 4. Return success response
     return res.status(200).json(new ApiResponse(200, { email, role: "admin" }, "Admin login successful"));

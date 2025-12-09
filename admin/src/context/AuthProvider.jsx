@@ -7,13 +7,13 @@ export const authDataContext = createContext({
     adminData: null,
     loading: true,
     serverUrl: "",
-    loginAdmin: () => {},
-    logoutAdmin: () => {},
+    loginAdmin: () => { },
+    logoutAdmin: () => { },
 });
 
 const AuthProvider = ({ children }) => {
     const serverUrl = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
-    
+
     // ✅ 2. Add state for the authenticated user and loading status
     const [adminData, setAdminData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -23,7 +23,7 @@ const AuthProvider = ({ children }) => {
         try {
             // axios.defaults.withCredentials = true is set in index.jsx, so this is safe
             const res = await axios.get(`${serverUrl}/api/v1/auth/admin/current-admin`);
-            
+
             // Assuming res.data.data contains { email, role }
             if (res.data.status === 200 && res.data.data?.email) {
                 setAdminData(res.data.data);
@@ -37,23 +37,27 @@ const AuthProvider = ({ children }) => {
             setLoading(false);
         }
     }, [serverUrl]);
-    
+
     // Function to handle Admin Login API call
     const loginAdmin = async (email, password) => {
         try {
+            // Ensure credentials: 'include' is set globally for axios if not here
             const res = await axios.post(`${serverUrl}/api/v1/auth/admin/login`, { email, password });
-            
+
             if (res.data.status === 200) {
-                // Assuming the response includes the admin data
-                setAdminData(res.data.data); 
+                // Assuming the response data has the structure { email, role }
+                setAdminData(res.data.data);
                 toast.success("Admin login successful!");
                 return true;
             }
+            // Note: If the backend throws a 401/403 ApiError, Axios moves to the catch block.
+            return false; // Should not be reached in typical error flow, but safe practice
+
         } catch (error) {
-            // Handle specific errors from the backend (e.g., Invalid credentials)
+            // Handle specific errors from the backend (e.g., Invalid credentials from ApiError)
             const errorMessage = error.response?.data?.message || "Login failed due to network error.";
             toast.error(errorMessage);
-            return false;
+            return false; // Indicate login failure
         }
     };
 
@@ -67,7 +71,7 @@ const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error("Logout error:", error);
             // Even if the API call fails, clear local state as a fallback
-            setAdminData(null); 
+            setAdminData(null);
             toast.error("Logout failed, but session cleared locally.");
             return false;
         }
@@ -78,9 +82,9 @@ const AuthProvider = ({ children }) => {
         checkAdminStatus();
     }, [checkAdminStatus]); // Dependency array includes checkAdminStatus
 
-    const value = { 
-        serverUrl, 
-        adminData, 
+    const value = {
+        serverUrl,
+        adminData,
         loading,
         loginAdmin,
         logoutAdmin,
@@ -95,7 +99,7 @@ const AuthProvider = ({ children }) => {
             </div>
         );
     }
-    
+
     return (
         <authDataContext.Provider value={value}>
             {children}
