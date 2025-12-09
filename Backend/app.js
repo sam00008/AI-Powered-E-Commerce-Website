@@ -13,7 +13,7 @@ app.use(cookieParser());
 // specific origins are safer for credentials
 const allowedOrigins = [
   "https://ai-powered-e-commerce-website-frontend-0e3m.onrender.com",
-  "https://ai-powered-e-commerce-website-admin-xyym.onrender.com/",
+  "https://ai-powered-e-commerce-website-admin-xyym.onrender.com",
 ];
 
 app.use(cors({

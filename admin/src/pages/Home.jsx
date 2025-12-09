@@ -10,7 +10,7 @@ function Home() {
     const checkAdmin = async () => {
       try {
         const res = await fetch(
-          "http://localhost:3000/api/v1/auth/admin/current",
+          "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/v1/auth/admin/current-admin",
           { method: "GET", credentials: "include" }
         );
         if (res.ok) {
