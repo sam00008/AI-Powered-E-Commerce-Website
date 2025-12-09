@@ -175,7 +175,7 @@ const adminLogin = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid admin credentials");
     }
 
-    // 2. Issue a single, long-lived token (7 days in this example)
+    /* 2. Issue a single, long-lived token (7 days in this example)
     const expiry = "7d";
     const tokenPayload = { email, role: "admin" };
 
@@ -183,7 +183,7 @@ const adminLogin = asyncHandler(async (req, res) => {
     const token = jwt.sign(tokenPayload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: expiry });
 
     // 3. Set the long-lived token in an HTTP-only cookie
-    res.cookie("accessToken", token, { ...cookieOptions, maxAge: getCookieMaxAge(expiry) }); // ✅ Fixed dependency
+    res.cookie("accessToken", token, { ...cookieOptions, maxAge: getCookieMaxAge(expiry) }); // ✅ Fixed dependency */
 
     // 4. Return success response
     return res.status(200).json(new ApiResponse(200, { email, role: "admin" }, "Admin login successful"));
