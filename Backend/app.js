@@ -16,22 +16,29 @@ const allowedOrigins = [
   "https://ai-powered-e-commerce-website-admin-xyym.onrender.com",
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      // If specific origin check fails, you can allow all for dev, 
-      // but for production stick to the array.
-      // For now, let's strictly allow from array or return error
-      return callback(new Error('CORS policy violation'), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true, // IMPORTANT: Allows cookies to be sent/received
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"], 
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow non-browser tools (Postman, mobile apps)
+      if (!origin) return callback(null, true);
+
+      if (!allowedOrigins.includes(origin)) {
+        return callback(new Error("CORS Not Allowed: " + origin), false);
+      }
+
+      // IMPORTANT: must explicitly ALLOW the origin
+      return callback(null, true);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
 
 // Routes
 import authRouter from "./routes/auth.routes.js";
