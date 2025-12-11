@@ -1,3 +1,5 @@
+// src/component/ProtectedRoute.jsx
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -20,10 +22,10 @@ function ProtectedRoute({ children }) {
         if (res.data.status === 200) {
           setIsAuth(true);
         } else {
-          navigate("/admin-login");
+          navigate("/login"); // 👈 FIXED HERE
         }
       } catch {
-        navigate("/admin-login");
+        navigate("/login");   // 👈 FIXED HERE
       } finally {
         setLoading(false);
       }
@@ -33,9 +35,11 @@ function ProtectedRoute({ children }) {
   }, [navigate]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">
-      <p>Verifying Admin access...</p>
-    </div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600 text-lg">Verifying admin access...</p>
+      </div>
+    );
   }
 
   return isAuth ? children : null;
