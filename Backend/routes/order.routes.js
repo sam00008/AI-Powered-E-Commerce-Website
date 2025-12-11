@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { verifyjwt } from "../middleware/auth.middleware.js";
+import { verifyAdmin } from "../middleware/admin.auth.middleware.js";
 import {
   cancelOrder,
   getOrderDetails,
@@ -23,6 +24,6 @@ router.post("/place/razorpay", verifyjwt, placeOrderRazorPay);
 // Admin Routes
 router.put("/status/:orderId",verifyjwt, updateOrderStatus);
 router.get("/admin/list",verifyjwt, adminGetAllOrders);
-router.delete("/admin/delete/:orderId",verifyjwt, adminDeleteOrder);
+router.delete("/admin/delete/:orderId",verifyAdmin, adminDeleteOrder);
 
 export default router;
