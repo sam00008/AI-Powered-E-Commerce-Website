@@ -1,4 +1,4 @@
-export const verifyAdmin = (req, res, next) => {
+ const verifyAdmin = (req, res, next) => {
   const adminToken = req.cookies?.adminToken;
 
   if (!adminToken) {
