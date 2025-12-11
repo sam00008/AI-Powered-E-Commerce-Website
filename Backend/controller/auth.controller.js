@@ -8,18 +8,29 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import ms from "ms";
 
+// UNIVERSAL COOKIE SETTINGS
 const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production", 
     sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
 };
 
+// ------------------------ TOKEN GENERATOR ------------------------
 const generateAccessAndRefreshToken = async (userId) => {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(500, "User not found during token generation.");
 
-    const accessToken = jwt.sign({ _id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: process.env.ACCESS_TOKEN_EXPIRY });
-    const refreshToken = jwt.sign({ _id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: process.env.REFRESH_TOKEN_EXPIRY });
+    const accessToken = jwt.sign(
+        { _id: user._id }, 
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
+    );
+
+    const refreshToken = jwt.sign(
+        { _id: user._id },
+        process.env.REFRESH_TOKEN_SECRET,
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
+    );
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
@@ -27,52 +38,80 @@ const generateAccessAndRefreshToken = async (userId) => {
     return { accessToken, refreshToken };
 };
 
-// --- REGISTER USER ---
-const registerUser = asyncHandler(async (req, res) => {
+// ----------------------------- REGISTER -----------------------------
+export const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) return res.status(400).json({ message: "All fields required" });
-    if (!validator.isEmail(email)) return res.status(400).json({ message: "Invalid email" });
+    if (!name || !email || !password)
+        return res.status(400).json({ message: "All fields required" });
 
-    if (await User.findOne({ email })) return res.status(409).json({ message: "User already exists" });
+    if (!validator.isEmail(email))
+        return res.status(400).json({ message: "Invalid email" });
+
+    if (await User.findOne({ email }))
+        return res.status(409).json({ message: "User already exists" });
 
     const user = await User.create({ name, email, password });
+
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
 
-    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY) });
-    res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: ms(process.env.REFRESH_TOKEN_EXPIRY) });
+    res.cookie("accessToken", accessToken, {
+        ...cookieOptions,
+        maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY),
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+        ...cookieOptions,
+        maxAge: ms(process.env.REFRESH_TOKEN_EXPIRY),
+    });
 
     const createdUser = await User.findById(user._id).select("-password -refreshToken");
-    return res.status(201).json(new ApiResponse(201, { user: createdUser }, "User registered successfully"));
+
+    return res.status(201).json(
+        new ApiResponse(201, { user: createdUser }, "User registered successfully")
+    );
 });
 
-// --- LOGIN USER ---
-const loginUser = asyncHandler(async (req, res) => {
+// ----------------------------- LOGIN -----------------------------
+export const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: "Email and password required" });
+
+    if (!email || !password)
+        return res.status(400).json({ message: "Email & password required" });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ message: "Invalid credentials: User not found" });
+    if (!user) return res.status(401).json({ message: "Invalid email or password" });
 
     const isMatch = await user.isPasswordCorrect(password);
-    if (!isMatch) return res.status(401).json({ message: "Invalid credentials: Password incorrect" });
+    if (!isMatch) return res.status(401).json({ message: "Invalid email or password" });
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
-    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY) });
-    res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: ms(process.env.REFRESH_TOKEN_EXPIRY) });
+
+    res.cookie("accessToken", accessToken, {
+        ...cookieOptions,
+        maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY),
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+        ...cookieOptions,
+        maxAge: ms(process.env.REFRESH_TOKEN_EXPIRY),
+    });
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
-    return res.status(200).json(new ApiResponse(200, { user: loggedInUser }, "Login successful"));
+
+    return res.status(200).json(
+        new ApiResponse(200, { user: loggedInUser }, "Login successful")
+    );
 });
 
-// --- REFRESH ACCESS TOKEN ---
-const refreshAccessToken = asyncHandler(async (req, res) => {
+// ----------------------------- REFRESH TOKEN -----------------------------
+export const refreshAccessToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken = req.cookies?.refreshToken;
 
     if (!incomingRefreshToken) {
         res.clearCookie("accessToken", cookieOptions);
         res.clearCookie("refreshToken", cookieOptions);
-        return res.status(401).json({ message: "Refresh token not found" });
+        return res.status(401).json({ message: "No refresh token" });
     }
 
     try {
@@ -85,86 +124,105 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             return res.status(401).json({ message: "Invalid refresh token" });
         }
 
-        const newAccessToken = jwt.sign({ _id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: process.env.ACCESS_TOKEN_EXPIRY });
-        res.cookie("accessToken", newAccessToken, { ...cookieOptions, maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY) });
+        const newAccessToken = jwt.sign(
+            { _id: user._id },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
+        );
 
-        return res.status(200).json(new ApiResponse(200, { accessToken: newAccessToken }, "New access token generated"));
+        res.cookie("accessToken", newAccessToken, {
+            ...cookieOptions,
+            maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY),
+        });
+
+        return res.status(200).json(
+            new ApiResponse(200, { accessToken: newAccessToken }, "Token refreshed")
+        );
     } catch (error) {
         res.clearCookie("accessToken", cookieOptions);
         res.clearCookie("refreshToken", cookieOptions);
-        return res.status(401).json({ message: "Invalid or expired refresh token" });
+        return res.status(401).json({ message: "Expired refresh token" });
     }
 });
 
-// --- LOGOUT USER ---
-const logoutUser = asyncHandler(async (req, res) => {
-    await User.findByIdAndUpdate(req.user._id, { $set: { refreshToken: null } }, { new: true });
+// ----------------------------- LOGOUT -----------------------------
+export const logoutUser = asyncHandler(async (req, res) => {
+    await User.findByIdAndUpdate(req.user._id, { refreshToken: null });
 
     res.clearCookie("accessToken", cookieOptions);
     res.clearCookie("refreshToken", cookieOptions);
 
-    return res.status(200).json(new ApiResponse(200, {}, "User logged out successfully"));
+    return res.status(200).json(
+        new ApiResponse(200, {}, "User logged out successfully")
+    );
 });
 
-// --- GET CURRENT USER ---
-const getCurrentUser = asyncHandler(async (req, res) => {
+// ----------------------------- CURRENT USER -----------------------------
+export const getCurrentUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id).select("-password -refreshToken");
     if (!user) return res.status(404).json({ message: "User not found" });
-    return res.status(200).json(new ApiResponse(200, { user }, "Current user fetched"));
+
+    return res.status(200).json(new ApiResponse(200, { user }, "User fetched"));
 });
 
-// --- FORGET PASSWORD ---
-const forgetPassword = asyncHandler(async (req, res) => {
+// ----------------------------- FORGOT PASSWORD -----------------------------
+export const forgetPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
-    if (!email || !validator.isEmail(email)) return res.status(400).json({ message: "Invalid email" });
+
+    if (!email || !validator.isEmail(email))
+        return res.status(400).json({ message: "Invalid email" });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(200).json(new ApiResponse(200, {}, "If a user exists, a password reset email has been sent."));
+
+    if (!user)
+        return res.status(200).json(new ApiResponse(200, {}, "Email sent if user exists"));
 
     const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken();
+
     user.forgotPasswordToken = hashedToken;
     user.forgotPasswordExpiry = tokenExpiry;
     await user.save({ validateBeforeSave: false });
 
     const resetUrl = `${process.env.FORGOT_PASSWORD_REDIRECT_URL}/${unHashedToken}`;
-    await sendEmail({ email: user.email, subject: "Reset your Password", mailgenContent: forgotPasswordMailgenContent(user.name, resetUrl) });
 
-    return res.status(200).json(new ApiResponse(200, {}, "Password reset mail sent successfully"));
+    await sendEmail({
+        email: user.email,
+        subject: "Reset your Password",
+        mailgenContent: forgotPasswordMailgenContent(user.name, resetUrl),
+    });
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Password reset link sent")
+    );
 });
 
-// --- RESET FORGOT PASSWORD ---
-const resetForgotPassword = asyncHandler(async (req, res) => {
+// ----------------------------- RESET PASSWORD -----------------------------
+export const resetForgotPassword = asyncHandler(async (req, res) => {
     const { resetToken } = req.params;
     const { newPassword } = req.body;
 
-    if (!newPassword) return res.status(400).json({ message: "New password required" });
+    if (!newPassword)
+        return res.status(400).json({ message: "New password required" });
 
     const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-    const user = await User.findOne({ forgotPasswordToken: hashedToken, forgotPasswordExpiry: { $gt: Date.now() } });
 
-    if (!user) return res.status(401).json({ message: "Token invalid or expired" });
-    if (newPassword.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+    const user = await User.findOne({
+        forgotPasswordToken: hashedToken,
+        forgotPasswordExpiry: { $gt: Date.now() },
+    });
+
+    if (!user)
+        return res.status(401).json({ message: "Token expired or invalid" });
 
     user.password = newPassword;
     user.forgotPasswordToken = undefined;
     user.forgotPasswordExpiry = undefined;
     await user.save();
 
-    return res.status(200).json(new ApiResponse(200, {}, "Password reset successfully"));
+    return res.status(200).json(new ApiResponse(200, {}, "Password reset successful"));
 });
 
-const getCookieMaxAge = (expiry) => {
-    // Converts time string (e.g., "7d") to milliseconds for the cookie's maxAge property
-    try {
-        return ms(expiry);
-    } catch (e) {
-        console.error("Error converting expiry string:", expiry, e);
-        return 0;
-    }
-};
-
-// --- ADMIN LOGIN ---
-// --- ADMIN LOGIN ---
+// ----------------------------- ADMIN LOGIN -----------------------------
 export const adminLogin = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
@@ -172,85 +230,51 @@ export const adminLogin = asyncHandler(async (req, res) => {
     const adminPassword = process.env.ADMIN_LOGIN_PASSWORD;
 
     if (email !== adminEmail || password !== adminPassword) {
-        return res.status(401).json({
-            status: 401,
-            message: "Invalid admin credentials"
-        });
+        return res.status(401).json({ status: 401, message: "Invalid admin credentials" });
     }
 
-    const tokenPayload = { email, role: "admin" };
-
     const token = jwt.sign(
-        tokenPayload,
+        { email, role: "admin" },
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: "7d" }
     );
 
     res.cookie("accessToken", token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 7 * 24 * 60 * 60 * 1000
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.status(200).json({
         status: 200,
         message: "Admin login successful",
-        data: { email, role: "admin" }
+        data: { email, role: "admin" },
     });
 });
 
-// --- CURRENT ADMIN (Status Check) ---
+// ----------------------------- CURRENT ADMIN -----------------------------
 export const currentAdmin = asyncHandler(async (req, res) => {
     const token = req.cookies?.accessToken;
 
-    if (!token) {
-        return res.status(401).json({
-            status: 401,
-            message: "Not authenticated"
-        });
-    }
+    if (!token) return res.status(401).json({ status: 401, message: "Not authenticated" });
 
     try {
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
         return res.status(200).json({
             status: 200,
-            data: decoded
+            data: decoded,
         });
-
-    } catch (err) {
-        return res.status(401).json({
-            status: 401,
-            message: "Invalid or expired token"
-        });
+    } catch {
+        return res.status(401).json({ status: 401, message: "Invalid or expired token" });
     }
 });
 
-
-// --- ADMIN LOGOUT (Simple Clear) ---
+// ----------------------------- ADMIN LOGOUT -----------------------------
 export const adminLogout = asyncHandler(async (req, res) => {
-    res.clearCookie("accessToken", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-    });
+    res.clearCookie("accessToken", cookieOptions);
 
     return res.status(200).json({
         status: 200,
-        message: "Logged out successfully"
+        message: "Logged out successfully",
     });
 });
-
-export {
-    registerUser,
-    loginUser,
-    logoutUser,
-    forgetPassword,
-    resetForgotPassword,
-    getCurrentUser,
-    adminLogin,
-    currentAdmin,
-    adminLogout,
-    refreshAccessToken
-};
