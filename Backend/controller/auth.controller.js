@@ -165,18 +165,23 @@ const getCookieMaxAge = (expiry) => {
 
 // --- ADMIN LOGIN ---
 // --- ADMIN LOGIN ---
-const adminLogin = asyncHandler(async (req, res) => {
+export const adminLogin = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     const adminEmail = process.env.ADMIN_LOGIN_EMAIL;
     const adminPassword = process.env.ADMIN_LOGIN_PASSWORD;
 
-    if (adminEmail !== email || adminPassword !== password) {
-        throw new ApiError(401, "Invalid admin credentials");
+    if (email !== adminEmail || password !== adminPassword) {
+        return res.status(401).json({
+            status: 401,
+            message: "Invalid admin credentials"
+        });
     }
 
+    const tokenPayload = { email, role: "admin" };
+
     const token = jwt.sign(
-        { email, role: "admin" },
+        tokenPayload,
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: "7d" }
     );
@@ -188,40 +193,53 @@ const adminLogin = asyncHandler(async (req, res) => {
         maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    return res.status(200).json(
-        new ApiResponse(200, { email, role: "admin" }, "Admin login successful")
-    );
+    return res.status(200).json({
+        status: 200,
+        message: "Admin login successful",
+        data: { email, role: "admin" }
+    });
 });
+
 // --- CURRENT ADMIN (Status Check) ---
-const currentAdmin = asyncHandler(async (req, res) => {
+export const currentAdmin = asyncHandler(async (req, res) => {
     const token = req.cookies?.accessToken;
 
     if (!token) {
-        throw new ApiError(401, "No admin token provided");
+        return res.status(401).json({
+            status: 401,
+            message: "Not authenticated"
+        });
     }
 
     try {
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-        // 1. Re-verify payload against static environment variables (no DB lookup)
-        if (decoded.email !== process.env.ADMIN_LOGIN_EMAIL) {
-            throw new ApiError(403, "Token belongs to non-admin");
-        }
+        return res.status(200).json({
+            status: 200,
+            data: decoded
+        });
 
-        // 2. Success: Token is valid and matches the static admin email
-        return res.status(200).json(new ApiResponse(200, { email: decoded.email, role: decoded.role || "admin" }, "Current admin fetched successfully"));
-    } catch (error) {
-        // Clear cookie on failure (expired/invalid)
-        res.clearCookie("accessToken", cookieOptions);
-        throw new ApiError(401, error?.message || "Invalid or expired admin token");
+    } catch (err) {
+        return res.status(401).json({
+            status: 401,
+            message: "Invalid or expired token"
+        });
     }
 });
 
+
 // --- ADMIN LOGOUT (Simple Clear) ---
-const adminLogout = asyncHandler(async (req, res) => {
-    // This correctly clears the single token, effectively logging the admin out.
-    res.clearCookie("accessToken", cookieOptions);
-    return res.status(200).json(new ApiResponse(200, {}, "Admin successfully logged out"));
+export const adminLogout = asyncHandler(async (req, res) => {
+    res.clearCookie("accessToken", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+    });
+
+    return res.status(200).json({
+        status: 200,
+        message: "Logged out successfully"
+    });
 });
 
 export {
