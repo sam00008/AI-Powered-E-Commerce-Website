@@ -9,11 +9,14 @@ function Order() {
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState({});
 
+  // axios default — send cookies
+  axios.defaults.withCredentials = true;
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
       const res = await axios.get(`${serverUrl}/api/order/admin/list`, {
-        withCredentials: true
+        withCredentials: true,
       });
       setOrders(res.data.data || []);
     } catch (error) {
@@ -38,8 +41,8 @@ function Order() {
       toast.success("Order status updated");
 
       const updatedOrder = res.data.data;
-      setOrders((prev) =>
-        prev.map((order) =>
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
           order._id === orderId ? updatedOrder : order
         )
       );
@@ -55,6 +58,7 @@ function Order() {
         `${serverUrl}/api/order/admin/delete/${orderId}`,
         { withCredentials: true }
       );
+
       toast.success("Order deleted successfully");
       setOrders((prev) => prev.filter((o) => o._id !== orderId));
     } catch (error) {
@@ -97,36 +101,46 @@ function Order() {
                 <th className="px-6 py-3 text-center">Actions</th>
               </tr>
             </thead>
-
             <tbody>
               {orders.map((order) => (
-                <tr key={order._id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4">{order._id.slice(-6).toUpperCase()}</td>
+                <tr key={order._id} className="border-b hover:bg-gray-50 transition">
+                  <td className="px-6 py-4 font-medium text-gray-800">
+                    {order._id.slice(-6).toUpperCase()}
+                  </td>
                   <td className="px-6 py-4">
-                    {order.shippingAddress?.fullName}
+                    {order.shippingAddress?.fullName || "N/A"}
                     <div className="text-xs text-gray-500">
                       {order.shippingAddress?.phone}
                     </div>
                   </td>
-
                   <td className="px-6 py-4 font-semibold">₹{order.totalAmount}</td>
-
-                  <td className="px-6 py-4">{order.status}</td>
-
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        order.status === "Pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : order.status === "Delivered"
+                          ? "bg-green-100 text-green-700"
+                          : order.status === "Cancelled"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+                      {order.status}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">{order.paymentMethod}</td>
-
                   <td className="px-6 py-4">
                     {new Date(order.createdAt).toLocaleString()}
                   </td>
-
                   <td className="px-6 py-4 flex flex-col items-center gap-2">
                     <div className="flex gap-2">
                       <select
                         onChange={(e) =>
-                          setSelectedStatus((prev) => ({
-                            ...prev,
+                          setSelectedStatus({
+                            ...selectedStatus,
                             [order._id]: e.target.value,
-                          }))
+                          })
                         }
                         value={selectedStatus[order._id] || ""}
                         className="border border-gray-300 rounded-md px-2 py-1 text-xs"
@@ -141,7 +155,7 @@ function Order() {
 
                       <button
                         onClick={() => handleStatusUpdate(order._id)}
-                        className="bg-blue-600 text-white text-xs px-3 py-1 rounded"
+                        className="bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-700"
                       >
                         Update
                       </button>
@@ -149,7 +163,7 @@ function Order() {
 
                     <button
                       onClick={() => handleDeleteOrder(order._id)}
-                      className="bg-red-500 text-white text-xs px-3 py-1 rounded"
+                      className="bg-red-500 text-white text-xs px-3 py-1 rounded hover:bg-red-600"
                     >
                       Delete
                     </button>
@@ -157,7 +171,6 @@ function Order() {
                 </tr>
               ))}
             </tbody>
-
           </table>
         </div>
       )}
