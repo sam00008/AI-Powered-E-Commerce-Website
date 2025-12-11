@@ -20,46 +20,48 @@ const AuthProvider = ({ children }) => {
 
     // Function to check if the admin is currently logged in (used on initial load)
     const checkAdminStatus = useCallback(async () => {
-        try {
-            // axios.defaults.withCredentials = true is set in index.jsx, so this is safe
-            const res = await axios.get(`${serverUrl}/api/v1/auth/admin/current-admin`);
+    try {
+        const res = await axios.get(
+            `${serverUrl}/api/v1/auth/admin/current-admin`,
+            { withCredentials: true }
+        );
 
-            // Assuming res.data.data contains { email, role }
-            if (res.data.status === 200 && res.data.data?.email) {
-                setAdminData(res.data.data);
-            } else {
-                setAdminData(null);
-            }
-        } catch (error) {
-            // This is expected if the cookie is expired or missing (401/403)
+        if (res.data.status === 200) {
+            setAdminData(res.data.data);
+        } else {
             setAdminData(null);
-        } finally {
-            setLoading(false);
         }
-    }, [serverUrl]);
+
+    } catch {
+        setAdminData(null);
+    } finally {
+        setLoading(false);
+    }
+}, [serverUrl]);
 
     // Function to handle Admin Login API call
     const loginAdmin = async (email, password) => {
-        try {
-            // Ensure credentials: 'include' is set globally for axios if not here
-            const res = await axios.post(`${serverUrl}/api/v1/auth/admin/login`, { email, password });
+    try {
+        const res = await axios.post(
+            `${serverUrl}/api/v1/auth/admin/login`,
+            { email, password },
+            { withCredentials: true }
+        );
 
-            if (res.data.status === 200) {
-                // Assuming the response data has the structure { email, role }
-                setAdminData(res.data.data);
-                toast.success("Admin login successful!");
-                return true;
-            }
-            // Note: If the backend throws a 401/403 ApiError, Axios moves to the catch block.
-            return false; // Should not be reached in typical error flow, but safe practice
-
-        } catch (error) {
-            // Handle specific errors from the backend (e.g., Invalid credentials from ApiError)
-            const errorMessage = error.response?.data?.message || "Login failed due to network error.";
-            toast.error(errorMessage);
-            return false; // Indicate login failure
+        if (res.data.status === 200) {
+            setAdminData(res.data.data);
+            toast.success("Admin login successful!");
+            return true;
         }
-    };
+
+        return false;
+
+    } catch (error) {
+        const errorMessage = error.response?.data?.message || "Login failed.";
+        toast.error(errorMessage);
+        return false;
+    }
+};
 
     // Function to handle Admin Logout API call
     const logoutAdmin = async () => {

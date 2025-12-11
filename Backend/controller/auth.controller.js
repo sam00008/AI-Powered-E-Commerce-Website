@@ -167,28 +167,31 @@ const getCookieMaxAge = (expiry) => {
 // --- ADMIN LOGIN ---
 const adminLogin = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
+
     const adminEmail = process.env.ADMIN_LOGIN_EMAIL;
     const adminPassword = process.env.ADMIN_LOGIN_PASSWORD;
 
-    // 1. Verify static credentials
     if (adminEmail !== email || adminPassword !== password) {
         throw new ApiError(401, "Invalid admin credentials");
     }
 
-    /* 2. Issue a single, long-lived token (7 days in this example)
-    const expiry = "7d";
-    const tokenPayload = { email, role: "admin" };
+    const token = jwt.sign(
+        { email, role: "admin" },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "7d" }
+    );
 
-    // ⚠️ The token is signed using only the static email and role, NOT a user ID.
-    const token = jwt.sign(tokenPayload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: expiry });
+    res.cookie("accessToken", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    });
 
-    // 3. Set the long-lived token in an HTTP-only cookie
-    res.cookie("accessToken", token, { ...cookieOptions, maxAge: getCookieMaxAge(expiry) }); // ✅ Fixed dependency */
-
-    // 4. Return success response
-    return res.status(200).json(new ApiResponse(200, { email, role: "admin" }, "Admin login successful"));
+    return res.status(200).json(
+        new ApiResponse(200, { email, role: "admin" }, "Admin login successful")
+    );
 });
-
 // --- CURRENT ADMIN (Status Check) ---
 const currentAdmin = asyncHandler(async (req, res) => {
     const token = req.cookies?.accessToken;

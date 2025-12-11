@@ -1,51 +1,44 @@
-// src/component/ProtectedRoute.jsx
-
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
 
 function ProtectedRoute({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isAuth, setIsAuth] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const verify = async () => {
       try {
-        // Use the current-admin endpoint to check for a valid cookie
-        const res = await fetch(`${BASE_URL}/api/v1/auth/admin/current-admin`, {
-          method: 'GET',
-          credentials: 'include', // Ensure the cookie is sent
-        });
+        const res = await axios.get(
+          `${BASE_URL}/api/v1/auth/admin/current-admin`,
+          { withCredentials: true }
+        );
 
-        if (res.ok) {
-          // If the token is valid, authentication is successful
-          setIsAuthenticated(true);
+        if (res.data.status === 200) {
+          setIsAuth(true);
         } else {
-          // If not authenticated, redirect to login
-          navigate('/login'); 
+          navigate("/admin-login");
         }
-      } catch (error) {
-        console.error("Auth check failed:", error);
-        navigate('/login');
+      } catch {
+        navigate("/admin-login");
       } finally {
         setLoading(false);
       }
     };
-    checkAuth();
+
+    verify();
   }, [navigate]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500 text-lg">Verifying Admin access...</p>
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">
+      <p>Verifying Admin access...</p>
+    </div>;
   }
 
-  // If authenticated, render the child route (DashboardHome)
-  return isAuthenticated ? children : null;
+  return isAuth ? children : null;
 }
 
 export default ProtectedRoute;
