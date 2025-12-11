@@ -1,14 +1,20 @@
- const verifyAdmin = (req, res, next) => {
-  const adminToken = req.cookies?.adminToken;
+export const verifyAdmin = (req, res, next) => {
+    const token = req.cookies.accessToken; // FIXED (was adminToken)
 
-  if (!adminToken) {
-    return res.status(401).json({ message: "Admin not authenticated" });
-  }
+    if (!token) {
+        return res.status(401).json({ status: 401, message: "Admin not authenticated" });
+    }
 
-  if (adminToken !== process.env.ADMIN_TOKEN_SECRET) {
-    return res.status(401).json({ message: "Invalid admin token" });
-  }
+    try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-  next();
+        if (decoded.role !== "admin") {
+            return res.status(403).json({ status: 403, message: "Access denied" });
+        }
+
+        req.admin = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ status: 401, message: "Invalid or expired admin token" });
+    }
 };
-export { verifyAdmin} ;
