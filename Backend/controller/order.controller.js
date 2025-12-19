@@ -11,13 +11,13 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api_Response.js";
 import { ApiError } from "../utils/api_Error.js";
 
-// ✅ Razorpay Instance
+// Razorpay Instance
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY,
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
-// ✅ --- PLACE ORDER (Cash on Delivery) ---
+// PLACE ORDER (Cash on Delivery) 
 const placeOrder = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { shippingAddress, paymentMethod, items } = req.body;
@@ -75,7 +75,7 @@ const placeOrder = asyncHandler(async (req, res) => {
     shippingAddress,
     paymentMethod,
     totalAmount: calculatedTotalAmount,
-    status: "Pending", // ✅ consistent with schema
+    status: "Pending",
   });
 
   const savedOrder = await newOrder.save();
@@ -86,7 +86,7 @@ const placeOrder = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, savedOrder, "Order placed successfully"));
 });
 
-// ✅ --- PLACE ORDER (Razorpay) ---
+//PLACE ORDER (Razorpay) 
 const placeOrderRazorPay = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { shippingAddress, items } = req.body;
@@ -122,7 +122,7 @@ const placeOrderRazorPay = asyncHandler(async (req, res) => {
 
   total += SHIPPING_COST;
 
-  // 💳 Create Razorpay Order
+  //Create Razorpay Order
   const razorpayOrder = await razorpayInstance.orders.create({
     amount: total * 100, // amount in paisa
     currency: "INR",
@@ -130,14 +130,14 @@ const placeOrderRazorPay = asyncHandler(async (req, res) => {
     notes: { userId: userId.toString() },
   });
 
-  // 📦 Create DB Order (schema-safe)
+  // Create DB Order
   const order = new Order({
     userId,
     items: finalItems,
     shippingAddress,
-    paymentMethod: "Online", // ✅ not "Razorpay"
+    paymentMethod: "Online",
     totalAmount: total,
-    status: "Pending", // ✅ within enum
+    status: "Pending", 
     razorpayOrderId: razorpayOrder.id,
   });
 
@@ -151,14 +151,14 @@ const placeOrderRazorPay = asyncHandler(async (req, res) => {
         razorpayOrderId: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
-        key: process.env.RAZORPAY_KEY, // frontend will use this
+        key: process.env.RAZORPAY_KEY, 
       },
       "Razorpay order created successfully"
     )
   );
 });
 
-// ✅ --- VERIFY RAZORPAY PAYMENT ---
+// VERIFY RAZORPAY PAYMENT ---
 const verifyRazorPayPayment = asyncHandler(async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
@@ -179,7 +179,7 @@ const verifyRazorPayPayment = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
   if (!order) throw new ApiError(404, "Order not found");
 
-  order.status = "Confirmed"; // ✅ valid enum
+  order.status = "Confirmed";
   order.razorpayPaymentId = razorpay_payment_id;
   await order.save();
 
@@ -188,7 +188,7 @@ const verifyRazorPayPayment = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, order, "Payment verified successfully"));
 });
 
-// ✅ --- GET USER ORDER HISTORY ---
+//  - GET USER ORDER HISTORY 
 const getOrderHistory = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const orders = await Order.find({ userId }).sort({ createdAt: -1 });
@@ -197,7 +197,7 @@ const getOrderHistory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, orders, "User order history fetched successfully"));
 });
 
-// ✅ --- GET SINGLE ORDER DETAILS ---
+//  GET SINGLE ORDER DETAILS 
 const getOrderDetails = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { orderId } = req.params;
@@ -218,7 +218,7 @@ const getOrderDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, order, "Order details retrieved successfully"));
 });
 
-// ✅ --- CANCEL ORDER ---
+//  CANCEL ORDER ---
 const cancelOrder = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { orderId } = req.params;
@@ -246,7 +246,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, order, "Order cancelled successfully"));
 });
 
-// ✅ --- ADMIN: UPDATE ORDER STATUS ---
+// ADMIN: UPDATE ORDER STATUS ---
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
@@ -265,7 +265,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, order, "Order status updated successfully"));
 });
 
-// ✅ --- ADMIN: GET ALL ORDERS ---
+//  ADMIN: GET ALL ORDERS ---
 const adminGetAllOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({}).sort({ createdAt: -1 });
   return res
@@ -273,7 +273,7 @@ const adminGetAllOrders = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, orders, "All orders fetched successfully"));
 });
 
-// ✅ --- ADMIN: DELETE ORDER ---
+//  ADMIN: DELETE ORDER 
 const adminDeleteOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
