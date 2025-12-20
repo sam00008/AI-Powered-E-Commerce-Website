@@ -1,9 +1,48 @@
 import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
-import aiIcon from "../../public/chat.webp";
+import aiIcon from "../../public/chat.webp"; // Ensure this path is correct
 import { ShopDataContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 
-// ✅ 1. Persistent recognition instance (Unchanged)
+// --- 🧠 AI PROCESSING ENGINE (Levenshtein Distance) ---
+// This calculates how similar two strings are (0 to 100%)
+const getSimilarity = (s1, s2) => {
+  let longer = s1;
+  let shorter = s2;
+  if (s1.length < s2.length) {
+    longer = s2;
+    shorter = s1;
+  }
+  const longerLength = longer.length;
+  if (longerLength === 0) {
+    return 1.0;
+  }
+  return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
+};
+
+const editDistance = (s1, s2) => {
+  s1 = s1.toLowerCase();
+  s2 = s2.toLowerCase();
+  const costs = new Array();
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) costs[j] = j;
+      else {
+        if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1))
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+    }
+    if (i > 0) costs[s2.length] = lastValue;
+  }
+  return costs[s2.length];
+};
+
+// ✅ 1. Persistent recognition instance
 let recognition = null;
 if (window.SpeechRecognition || window.webkitSpeechRecognition) {
   const SpeechRecognition =
@@ -14,75 +53,59 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
   recognition.continuous = true;
 }
 
-// --- 🚀 2. Pre-compiled Commands (Upgraded for Flexibility) ---
+// --- 🚀 2. Command Data Structure ---
 
 const rawNavCommands = {
-  "go home|open home|home": "/",
-  "show cart|open cart|go to bag|bag|cart": "/cart",
-  "show new|new arrivals": "/category/new",
-  "show women|women's collection": "/category/women",
-  "show men|men's collection": "/category/men",
-  "show kids|kids collection": "/category/kids",
-  "show jeans|jeans collection": "/category/jeans",
-  "go to order|show orders|order history": "/orders",
-  "show t-shirt|t-shirt collection": "/category/t-shirts",
-  "open shirt|shirt collection": "/category/shirts",
+  "go home|open home|home|homepage": "/",
+  "show cart|open cart|go to bag|bag|cart|my cart": "/cart",
+  "show new|new arrivals|latest products|new stuff": "/category/new",
+  "show women|women's collection|ladies|for women": "/category/women",
+  "show men|men's collection|mens|for men": "/category/men",
+  "show kids|kids collection|children|baby": "/category/kids",
+  "show jeans|jeans collection|denim|pants": "/category/jeans",
+  "go to order|show orders|order history|my orders": "/orders",
+  "show t-shirt|t-shirt collection|tees": "/category/t-shirts",
+  "open shirt|shirt collection|formal shirts": "/category/shirts",
 };
 
-// 🎯 Conversational prefixes for navigation
-const navPrefixes =
-  "(?:show|open|go to|navigate to|take me to|show me|I want to see)";
-
-const navigationCommands = Object.keys(rawNavCommands).map((pattern) => {
-  const spoken = pattern
-    .split("|")[0]
-    .replace(/^(show|open|go to)\s/i, "")
-    .trim();
-  
-  return {
-    // This regex now matches "show me [pattern]" OR just "[pattern]"
-    regex: new RegExp(`\\b(?:${navPrefixes}\\s+(?:the\\s+)?)?(${pattern})\\b`, "i"),
-    path: rawNavCommands[pattern],
-    spoken: spoken || "that",
-  };
+// 🛠️ Flatten commands for the AI processor
+// This converts the object into a flat array of every possible phrase
+const commandList = [];
+Object.keys(rawNavCommands).forEach((key) => {
+  const phrases = key.split("|");
+  const path = rawNavCommands[key];
+  phrases.forEach((phrase) => {
+    commandList.push({ phrase: phrase.trim(), path });
+  });
 });
 
-// 🧹 Pre-compiled UI Commands
+// 🧹 UI Commands (kept simple)
 const uiCommands = [
   {
-    regex: /\b(open search|show search)\b/i,
-    action: (speak, navigate, { setShowSearch }) => {
-      speak("Opening search.");
-      setShowSearch(true);
-      navigate("/search");
-    },
+    regex: /\b(stop listening|turn off|mic off)\b/i,
+    action: (speak, _, __, stopRef) => {
+        speak("Turning off.");
+        stopRef.current = true;
+        if(recognition) recognition.stop();
+    }
   },
   {
-    regex: /\b(close search|hide search)\b/i,
-    action: (speak, navigate, { setShowSearch }) => {
-      speak("Closing search.");
-      setShowSearch(false);
-    },
-  },
-  {
-    regex: /\b(scroll down)\b/i,
+    regex: /\b(scroll down|go down)\b/i,
     action: (speak) => {
       speak("Scrolling down.");
-      window.scrollBy({ top: 400, left: 0, behavior: "smooth" });
+      window.scrollBy({ top: 500, behavior: "smooth" });
     },
   },
   {
-    regex: /\b(scroll up)\b/i,
+    regex: /\b(scroll up|go up)\b/i,
     action: (speak) => {
       speak("Scrolling up.");
-      window.scrollBy({ top: -400, left: 0, behavior: "smooth" });
+      window.scrollBy({ top: -500, behavior: "smooth" });
     },
   },
 ];
 
-// 🎯 More flexible search regex
-const searchRegex =
-  /(?:search for|find|look for|show me|I want to see|do you have)\s+(.*)/i;
+const searchRegex = /(?:search for|find|look for|show me|do you have)\s+(.*)/i;
 
 // --- React Component ---
 
@@ -92,157 +115,142 @@ function Ai() {
   const [isListening, setIsListening] = useState(false);
   const intendedStop = useRef(false);
 
-  // ✅ Speak function (Unchanged)
+  // ✅ Speak function
   function speak(message) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(message);
     utterance.lang = "en-US";
+    utterance.rate = 1; 
     window.speechSynthesis.speak(utterance);
   }
 
-  // ✅ Command Processing Logic (Re-ordered and enhanced)
+  // ✅ INTELLIGENT COMMAND PROCESSING
   const processCommand = useCallback(
     (transcript) => {
-      // 🛑 1. Stop Command (Highest Priority)
-      if (/\b(mic off|stop listening|turn off)\b/i.test(transcript)) {
-        speak("Turning off the microphone.");
-        intendedStop.current = true;
-        if (recognition) recognition.stop();
+      const cleanTranscript = transcript.toLowerCase().trim();
+
+      // 1️⃣ Check UI/Stop commands first (Regex is fine for strict actions)
+      for (const cmd of uiCommands) {
+        if (cmd.regex.test(cleanTranscript)) {
+          cmd.action(speak, navigate, { setShowSearch }, intendedStop);
+          return;
+        }
+      }
+
+      // 2️⃣ FUZZY MATCHING (The "AI" Logic)
+      // We compare what user said to every known command phrase
+      let bestMatch = null;
+      let highestScore = 0;
+
+      commandList.forEach((cmd) => {
+        // Calculate similarity score (0.0 to 1.0)
+        const score = getSimilarity(cleanTranscript, cmd.phrase);
+        
+        // Bonus logic: Check if the transcript *includes* the phrase (for partial matches)
+        const partialMatchBonus = cleanTranscript.includes(cmd.phrase) ? 0.2 : 0;
+        const totalScore = score + partialMatchBonus;
+
+        if (totalScore > highestScore) {
+            highestScore = totalScore;
+            bestMatch = cmd;
+        }
+      });
+
+      // 🎯 Threshold: If confidence is > 60%, execute navigation
+      console.log(`Best Match: "${bestMatch?.phrase}" with Score: ${highestScore}`);
+      
+      if (bestMatch && highestScore > 0.6) {
+        speak(`Navigating to ${bestMatch.phrase}.`);
+        navigate(bestMatch.path);
         return;
       }
 
-      // 🗺️ 2. Simple Navigation (NOW CHECKED FIRST)
-      for (const cmd of navigationCommands) {
-        if (cmd.regex.test(transcript)) {
-          speak(`Going to the ${cmd.spoken} page.`);
-          navigate(cmd.path);
-          return;
-        }
+      // 3️⃣ Search Fallback (If no navigation match, assume it's a search query)
+      // This is smarter: if it doesn't match a path, try to find the "intent" to search
+      const searchMatch = cleanTranscript.match(searchRegex);
+      if (searchMatch) {
+        const query = searchMatch[1].trim();
+        speak(`Searching for ${query}`);
+        setSearchQuery(query);
+        setShowSearch(true);
+        navigate("/search");
+        return;
+      } 
+      // Fallback for direct product names without "search for" prefix
+      // If the user says "Red Shoes" and it didn't match a page, let's search for it.
+      else if (cleanTranscript.length > 3) {
+         speak(`Searching for ${cleanTranscript}`);
+         setSearchQuery(cleanTranscript);
+         setShowSearch(true);
+         navigate("/search");
+         return;
       }
 
-      // 🔎 3. Advanced Search Command (NOW CHECKED SECOND)
-      const match = transcript.match(searchRegex);
-      if (match) {
-        const query = match[1].trim();
-        if (query) {
-          speak(`Searching for ${query}`);
-          setSearchQuery(query);
-          setShowSearch(true);
-          navigate("/search");
-          return;
-        }
-      }
-
-      // 🖱️ 4. UI/Scroll Control (Now a clean loop)
-      const uiContext = { setShowSearch };
-      for (const cmd of uiCommands) {
-        if (cmd.regex.test(transcript)) {
-          cmd.action(speak, navigate, uiContext);
-          return;
-        }
-      }
-
-      // ❓ 5. Fallback
-      if (transcript.length > 0) {
-        speak("Sorry, I didn't understand that command.");
-      }
+      speak("I didn't quite catch that.");
     },
     [navigate, setShowSearch, setSearchQuery]
   );
 
-  // ✅ useEffect to manage all listeners (Unchanged)
+  // ✅ Speech Recognition Setup
   useEffect(() => {
-    if (!recognition) {
-      console.error("Speech recognition not supported.");
-      return;
-    }
+    if (!recognition) return;
 
     const handleResult = (event) => {
       const last = event.results.length - 1;
-      const transcript = event.results[last][0].transcript.trim().toLowerCase();
-      console.log("Transcript:", transcript);
+      const transcript = event.results[last][0].transcript;
+      console.log("🗣️ User said:", transcript);
       processCommand(transcript);
-    };
-
-    const handleError = (event) => {
-      console.error("Speech recognition error:", event.error);
-      if (event.error === 'not-allowed') {
-        speak("I need permission to use the microphone.");
-        intendedStop.current = true;
-      }
-    };
-
-    const handleStart = () => {
-      setIsListening(true);
-      intendedStop.current = false;
-      console.log("Speech recognition started.");
     };
 
     const handleEnd = () => {
       setIsListening(false);
-      console.log("Speech recognition ended.");
-      if (!intendedStop.current) {
-        console.log("Restarting recognition...");
-        try {
-          recognition.start();
-        } catch (e) {
-          console.warn("Restart failed:", e);
-        }
-      }
+      if (!intendedStop.current) recognition.start(); // Auto-restart
     };
 
     recognition.addEventListener("result", handleResult);
-    recognition.addEventListener("error", handleError);
-    recognition.addEventListener("start", handleStart);
     recognition.addEventListener("end", handleEnd);
+    recognition.addEventListener("start", () => setIsListening(true));
+    recognition.addEventListener("error", (e) => console.error("Error", e));
 
     return () => {
-      recognition.removeEventListener("result", handleResult);
-      recognition.removeEventListener("error", handleError);
-      recognition.removeEventListener("start", handleStart);
-      recognition.removeEventListener("end", handleEnd);
-      intendedStop.current = true;
-      recognition.stop();
+        recognition.removeEventListener("result", handleResult);
+        recognition.removeEventListener("end", handleEnd);
+        intendedStop.current = true;
+        recognition.stop();
     };
   }, [processCommand]);
 
-  // ✅ Toggle click handler (Unchanged)
   const handleVoiceInput = () => {
     if (!recognition) {
-      speak("Sorry, your browser does not support voice recognition.");
-      return;
+        alert("Voice not supported in this browser.");
+        return;
     }
-
     if (isListening) {
-      console.log("Stopping listening via click.");
       intendedStop.current = true;
       recognition.stop();
+      speak("Stopped listening.");
     } else {
-      try {
-        recognition.start();
-        speak("How may I help you?");
-      } catch (e) {
-        console.warn("Recognition start failed:", e);
-      }
+      intendedStop.current = false;
+      recognition.start();
+      speak("I'm listening.");
     }
   };
 
-  // --- JSX (Unchanged) ---
   return (
     <div
       className="fixed lg:bottom-[20px] md:bottom-[40px] bottom-[80px] left-[2%] z-50"
       onClick={handleVoiceInput}
     >
       {isListening && (
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-          LISTENING...
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse whitespace-nowrap">
+           LISTENING...
         </div>
       )}
       <img
         src={aiIcon}
         alt="AI Assistant"
-        className={`w-[100px] cursor-pointer hover:scale-105 transition-all ${
-          isListening ? "scale-110 opacity-75 animate-pulse" : ""
+        className={`w-[60px] md:w-[80px] lg:w-[100px] cursor-pointer hover:scale-105 transition-all duration-300 ${
+          isListening ? "scale-110 drop-shadow-[0_0_15px_rgba(0,255,0,0.6)]" : "drop-shadow-lg"
         }`}
       />
     </div>
