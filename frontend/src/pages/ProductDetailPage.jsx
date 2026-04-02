@@ -26,7 +26,7 @@ const ProductDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [cartLoading, setCartLoading] = useState(false);
 
-  const API_BASE_URL = "ai-powered-e-commerce-website-backend-j6vz.onrender.com/api";
+  const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api";
   const apiUrl = `${API_BASE_URL}/product/category/${id}`;
 
   // 🔥 RECOMMENDATION HOOKS
