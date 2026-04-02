@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { verifyJWT } from "../middleware/auth.middleware.js";
+import { verifyjwt } from "../middleware/auth.middleware.js";
 
 import {
     getFrequentlyBoughtTogether,
@@ -10,7 +10,7 @@ import {
 const router = Router();
 
 // Personalized (login required)
-router.get("/personalized", verifyJWT, getPersonalizedRecommendations);
+router.get("/personalized", verifyjwt, getPersonalizedRecommendations);
 
 // Frequently bought together
 router.get("/frequently/:productId", getFrequentlyBoughtTogether);

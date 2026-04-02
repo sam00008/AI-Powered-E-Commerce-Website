@@ -9,8 +9,8 @@ import Nav from "../component/Navi.jsx";
 import Footer from "../component/Footer.jsx";
 
 // 🔥 NEW IMPORTS
-import useRecommendations from "../hooks/useRecommendations";
-import RecommendationSection from "../component/RecommendationSection";
+import useRecommendations from "../hooks/useRecommendation.js";
+import RecommendationSection from "../component/RecommendationComponent.jsx"
 
 const ProductDetailPage = () => {
   const { id } = useParams();

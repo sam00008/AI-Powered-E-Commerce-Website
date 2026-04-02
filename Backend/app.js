@@ -13,6 +13,7 @@ app.use(cookieParser());
 // specific origins are safer for credentials
 const allowedOrigins = [
   "https://ai-powered-e-commerce-website-frontend-0e3m.onrender.com",
+  "http://localhost:5173",
   "https://ai-powered-e-commerce-website-admin-xyym.onrender.com",
 ];
 
