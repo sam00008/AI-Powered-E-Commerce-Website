@@ -1,6 +1,6 @@
-import { timeStamp } from "console";
+
 import mongoose from "mongoose";
-import { type } from "os";
+
 
 const orderSchema = new mongoose.Schema({
   userId: {
@@ -71,6 +71,11 @@ const orderSchema = new mongoose.Schema({
   totalAmount: {
     type: Number,
     required: true,
+  },
+
+  isRecommendationProcessed : {
+    type : Boolean,
+    default : false
   },
 
   status: {

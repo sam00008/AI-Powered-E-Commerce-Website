@@ -1,114 +1,141 @@
 import User from "../model/userModel.js";
-import dotenv from "dotenv";
-dotenv.config();
 import Product from "../model/productModel.js";
 import Order from "../model/orderModel.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import Razorpay from "razorpay";
+import dotenv from "dotenv";
 
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api_Response.js";
 import { ApiError } from "../utils/api_Error.js";
+import UserActivity from "../model/userActivityModel.js";
 
-// Razorpay Instance
+dotenv.config();
+
+// ✅ Razorpay Instance
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY,
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
-// PLACE ORDER (Cash on Delivery) 
+const SHIPPING_COST = 10;
+
+// ==============================
+// 🟢 PLACE ORDER (COD)
+// ==============================
 const placeOrder = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { shippingAddress, paymentMethod, items } = req.body;
 
-  if (!shippingAddress || Object.values(shippingAddress).some((val) => !val)) {
+  // ✅ Validation
+  if (!shippingAddress || Object.values(shippingAddress).some(v => !v)) {
     throw new ApiError(400, "Incomplete shipping address");
   }
+
   if (!paymentMethod) {
     throw new ApiError(400, "Payment method is required");
   }
+
   if (!items || !Array.isArray(items) || items.length === 0) {
-    throw new ApiError(400, "Cannot place an empty order. Cart is empty.");
+    throw new ApiError(400, "Cart is empty");
   }
 
-  const productIdsInCart = items
-    .map((item) => item.productId)
+  // ✅ Fetch Products
+  const productIds = items
+    .map(i => i.productId)
     .filter(mongoose.isValidObjectId);
 
-  const products = await Product.find({
-    _id: { $in: productIdsInCart },
-  }).select("name price");
+  const products = await Product.find({ _id: { $in: productIds } })
+    .select("name price");
 
-  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
-  const finalOrderItems = [];
-  let calculatedTotalAmount = 0;
-  const SHIPPING_COST = 10;
+  const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+  let totalAmount = 0;
+  const finalItems = [];
 
   for (const item of items) {
-    const productId = item.productId.toString();
-    const quantity = item.qty;
-    const product = productMap.get(productId);
+    const product = productMap.get(item.productId.toString());
 
-    if (!product || quantity <= 0) {
-      throw new ApiError(
-        400,
-        `Item in cart (${productId}) is unavailable or invalid.`
-      );
+    if (!product || item.qty <= 0) {
+      throw new ApiError(400, "Invalid product in cart");
     }
 
-    finalOrderItems.push({
+    finalItems.push({
       productId: product._id,
       name: product.name,
       price: product.price,
-      quantity,
+      quantity: item.qty,
     });
 
-    calculatedTotalAmount += product.price * quantity;
+    totalAmount += product.price * item.qty;
   }
 
-  calculatedTotalAmount += SHIPPING_COST;
+  totalAmount += SHIPPING_COST;
 
-  const newOrder = new Order({
+  // ✅ Create Order
+  const order = await Order.create({
     userId,
-    items: finalOrderItems,
+    items: finalItems,
     shippingAddress,
     paymentMethod,
-    totalAmount: calculatedTotalAmount,
+    totalAmount,
     status: "Pending",
   });
 
-  const savedOrder = await newOrder.save();
+  // ✅ Clear cart (optional improvement)
   await User.updateOne({ _id: userId }, { $set: { cartData: {} } });
+
+  // ✅ Track purchase activity (optimized)
+  await Promise.all(
+    finalItems.map(item =>
+      UserActivity.findOneAndUpdate(
+        { userId, productId: item.productId, action: "purchase" },
+        { $inc: { weight: 1 } },
+        { upsert: true }
+      )
+    )
+  );
 
   return res
     .status(201)
-    .json(new ApiResponse(201, savedOrder, "Order placed successfully"));
+    .json(new ApiResponse(201, order, "Order placed successfully"));
 });
 
-//PLACE ORDER (Razorpay) 
+
+// ==============================
+// 💳 PLACE ORDER (RAZORPAY)
+// ==============================
 const placeOrderRazorPay = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { shippingAddress, items } = req.body;
 
-  if (!shippingAddress || Object.values(shippingAddress).some((val) => !val)) {
+  if (!shippingAddress || Object.values(shippingAddress).some(v => !v)) {
     throw new ApiError(400, "Incomplete shipping address");
   }
+
   if (!items || !Array.isArray(items) || items.length === 0) {
-    throw new ApiError(400, "Cannot place an empty order.");
+    throw new ApiError(400, "Cart is empty");
   }
 
-  const productIds = items.map((i) => i.productId).filter(mongoose.isValidObjectId);
-  const products = await Product.find({ _id: { $in: productIds } }).select("name price");
+  const productIds = items
+    .map(i => i.productId)
+    .filter(mongoose.isValidObjectId);
 
-  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
-  const finalItems = [];
+  const products = await Product.find({ _id: { $in: productIds } })
+    .select("name price");
+
+  const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
   let total = 0;
-  const SHIPPING_COST = 10;
+  const finalItems = [];
 
   for (const item of items) {
     const product = productMap.get(item.productId.toString());
-    if (!product) throw new ApiError(404, "Product not found");
+
+    if (!product || item.qty <= 0) {
+      throw new ApiError(400, "Invalid product");
+    }
 
     finalItems.push({
       productId: product._id,
@@ -122,43 +149,40 @@ const placeOrderRazorPay = asyncHandler(async (req, res) => {
 
   total += SHIPPING_COST;
 
-  //Create Razorpay Order
+  // ✅ Create Razorpay Order
   const razorpayOrder = await razorpayInstance.orders.create({
-    amount: total * 100, // amount in paisa
+    amount: total * 100,
     currency: "INR",
     receipt: `receipt_${Date.now()}`,
     notes: { userId: userId.toString() },
   });
 
-  // Create DB Order
-  const order = new Order({
+  // ✅ Save Order in DB
+  const order = await Order.create({
     userId,
     items: finalItems,
     shippingAddress,
     paymentMethod: "Online",
     totalAmount: total,
-    status: "Pending", 
+    status: "Pending",
     razorpayOrderId: razorpayOrder.id,
   });
 
-  await order.save();
-
   return res.status(201).json(
-    new ApiResponse(
-      201,
-      {
-        orderId: order._id,
-        razorpayOrderId: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        key: process.env.RAZORPAY_KEY, 
-      },
-      "Razorpay order created successfully"
-    )
+    new ApiResponse(201, {
+      orderId: order._id,
+      razorpayOrderId: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      key: process.env.RAZORPAY_KEY,
+    }, "Razorpay order created")
   );
 });
 
-// VERIFY RAZORPAY PAYMENT ---
+
+// ==============================
+// ✅ VERIFY PAYMENT
+// ==============================
 const verifyRazorPayPayment = asyncHandler(async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
@@ -166,61 +190,72 @@ const verifyRazorPayPayment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid payment details");
   }
 
-  const body = razorpay_order_id + "|" + razorpay_payment_id;
-  const expectedSignature = crypto
+  const generatedSignature = crypto
     .createHmac("sha256", process.env.RAZORPAY_SECRET)
-    .update(body.toString())
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
     .digest("hex");
 
-  if (expectedSignature !== razorpay_signature) {
-    throw new ApiError(400, "Payment signature mismatch");
+  if (generatedSignature !== razorpay_signature) {
+    throw new ApiError(400, "Payment verification failed");
   }
 
   const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
+
   if (!order) throw new ApiError(404, "Order not found");
 
   order.status = "Confirmed";
   order.razorpayPaymentId = razorpay_payment_id;
+
   await order.save();
 
   return res
     .status(200)
-    .json(new ApiResponse(200, order, "Payment verified successfully"));
+    .json(new ApiResponse(200, order, "Payment verified"));
 });
 
-//  - GET USER ORDER HISTORY 
+
+// ==============================
+// 📦 USER ORDERS
+// ==============================
 const getOrderHistory = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  const orders = await Order.find({ userId }).sort({ createdAt: -1 });
+  const orders = await Order.find({ userId: req.user._id })
+    .sort({ createdAt: -1 });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, orders, "User order history fetched successfully"));
+    .json(new ApiResponse(200, orders, "Order history fetched"));
 });
 
-//  GET SINGLE ORDER DETAILS 
+
+// ==============================
+// 📄 ORDER DETAILS
+// ==============================
 const getOrderDetails = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
   const { orderId } = req.params;
+  const userId = req.user._id;
 
   if (!mongoose.isValidObjectId(orderId)) {
     throw new ApiError(400, "Invalid Order ID");
   }
 
   const order = await Order.findById(orderId);
+
   if (!order) throw new ApiError(404, "Order not found");
 
   if (order.userId.toString() !== userId.toString()) {
-    throw new ApiError(403, "Unauthorized access");
+    throw new ApiError(403, "Unauthorized");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, order, "Order details retrieved successfully"));
+    .json(new ApiResponse(200, order, "Order details"));
 });
 
-//  CANCEL ORDER ---
+
+// ==============================
+// ❌ CANCEL ORDER
+// ==============================
 const cancelOrder = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
   const { orderId } = req.params;
 
   if (!mongoose.isValidObjectId(orderId)) {
@@ -228,14 +263,15 @@ const cancelOrder = asyncHandler(async (req, res) => {
   }
 
   const order = await Order.findById(orderId);
+
   if (!order) throw new ApiError(404, "Order not found");
 
-  if (order.userId.toString() !== userId.toString()) {
-    throw new ApiError(403, "Unauthorized to cancel this order");
+  if (order.userId.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Unauthorized");
   }
 
   if (order.status !== "Pending") {
-    throw new ApiError(400, `Cannot cancel order with status: ${order.status}`);
+    throw new ApiError(400, "Cannot cancel this order");
   }
 
   order.status = "Cancelled";
@@ -243,16 +279,22 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, order, "Order cancelled successfully"));
+    .json(new ApiResponse(200, order, "Order cancelled"));
 });
 
-// ADMIN: UPDATE ORDER STATUS ---
+
+// ==============================
+// 🛠 ADMIN CONTROLS
+// ==============================
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
 
-  const allowedStatus = ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"];
-  if (!allowedStatus.includes(status)) throw new ApiError(400, "Invalid status");
+  const allowed = ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"];
+
+  if (!allowed.includes(status)) {
+    throw new ApiError(400, "Invalid status");
+  }
 
   const order = await Order.findById(orderId);
   if (!order) throw new ApiError(404, "Order not found");
@@ -262,18 +304,19 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, order, "Order status updated successfully"));
+    .json(new ApiResponse(200, order, "Status updated"));
 });
 
-//  ADMIN: GET ALL ORDERS ---
+
 const adminGetAllOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({}).sort({ createdAt: -1 });
+  const orders = await Order.find().sort({ createdAt: -1 });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, orders, "All orders fetched successfully"));
+    .json(new ApiResponse(200, orders, "All orders fetched"));
 });
 
-//  ADMIN: DELETE ORDER 
+
 const adminDeleteOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
@@ -282,13 +325,18 @@ const adminDeleteOrder = asyncHandler(async (req, res) => {
   }
 
   const order = await Order.findByIdAndDelete(orderId);
+
   if (!order) throw new ApiError(404, "Order not found");
 
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "Order deleted successfully"));
+    .json(new ApiResponse(200, {}, "Order deleted"));
 });
 
+
+// ==============================
+// EXPORTS
+// ==============================
 export {
   placeOrder,
   placeOrderRazorPay,

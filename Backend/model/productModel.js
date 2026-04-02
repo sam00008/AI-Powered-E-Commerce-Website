@@ -10,6 +10,11 @@ const productSchema = new mongoose.Schema({
     required: false, // optional field
     trim: true
   },
+
+  tags : {
+    type : [String],
+    default : []
+  },
   type: {
     type: String,
     required: false, // optional field (e.g., “T-Shirt”, “Jeans”)
