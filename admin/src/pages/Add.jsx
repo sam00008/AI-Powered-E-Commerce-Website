@@ -1,4 +1,4 @@
-// src/pages/Add.jsx (FINAL STABLE VERSION)
+// src/pages/Add.jsx (FINAL WITH TAGS + FIXED)
 
 import React, { useState } from "react";
 
@@ -11,6 +11,7 @@ function Add() {
     price: "",
     category: "",
     subCategory: "",
+    tags: "", // ✅ IMPORTANT FOR RECOMMENDATION
     bestSeller: false,
   });
 
@@ -78,11 +79,27 @@ function Add() {
         }
       }
 
-      // ✅ Create FormData
+      // ✅ Validate tags
+      if (!formData.tags.trim()) {
+        setMessage("❌ Please add tags (important for recommendation)");
+        setLoading(false);
+        return;
+      }
+
       const form = new FormData();
 
+      // ✅ Clean tags (REMOVE EMPTY VALUES)
+      const cleanTags = formData.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0)
+        .join(",");
+
       // Append text fields
-      Object.entries(formData).forEach(([key, value]) => {
+      Object.entries({
+        ...formData,
+        tags: cleanTags,
+      }).forEach(([key, value]) => {
         form.append(key, value);
       });
 
@@ -90,11 +107,6 @@ function Add() {
       Object.entries(images).forEach(([key, file]) => {
         form.append(key, file);
       });
-
-      // ✅ DEBUG (VERY IMPORTANT)
-      for (let [key, value] of form.entries()) {
-        console.log(key, value);
-      }
 
       // =========================
       // API CALL
@@ -108,9 +120,8 @@ function Add() {
         }
       );
 
-      // ✅ HANDLE RAW RESPONSE (FIXES '<!DOCTYPE' ERROR)
+      // ✅ HANDLE RAW RESPONSE (FIX HTML ERROR)
       const text = await res.text();
-      console.log("RAW RESPONSE:", text);
 
       let data;
       try {
@@ -131,6 +142,7 @@ function Add() {
           price: "",
           category: "",
           subCategory: "",
+          tags: "",
           bestSeller: false,
         });
 
@@ -216,6 +228,15 @@ function Add() {
             name="subCategory"
             placeholder="Subcategory (T-Shirts, Jeans)"
             value={formData.subCategory}
+            onChange={handleChange}
+            className="border p-2 w-full"
+          />
+
+          {/* ✅ TAGS FIELD (VERY IMPORTANT) */}
+          <input
+            name="tags"
+            placeholder="Tags (comma separated: casual, summer, cotton)"
+            value={formData.tags}
             onChange={handleChange}
             className="border p-2 w-full"
           />

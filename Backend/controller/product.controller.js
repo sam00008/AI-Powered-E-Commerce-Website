@@ -7,7 +7,7 @@ import UserActivity from "../model/userActivityModel.js";
 import fs from "fs/promises";
 
 // =====================================================
-// 🟢 ADD PRODUCT (FIXED)
+// 🟢 ADD PRODUCT
 // =====================================================
 const addProduct = asyncHandler(async (req, res) => {
     const {
@@ -19,20 +19,15 @@ const addProduct = asyncHandler(async (req, res) => {
         brand,
         type,
         bestSeller,
-        tags // ✅ NEW
+        tags
     } = req.body;
 
+    // ✅ VALIDATION
     if (!name || !description || !price || !category || !subCategory) {
         throw new ApiError(400, "All required fields must be filled");
     }
 
-    if (
-        !req.files ||
-        !req.files.image1 ||
-        !req.files.image2 ||
-        !req.files.image3 ||
-        !req.files.image4
-    ) {
+    if (!req.files || !req.files.image1 || !req.files.image2 || !req.files.image3 || !req.files.image4) {
         throw new ApiError(400, "All four images are required");
     }
 
@@ -44,21 +39,28 @@ const addProduct = asyncHandler(async (req, res) => {
     ];
 
     try {
+        // ✅ Upload images
         const uploads = await Promise.all(
             imagePaths.map((path) => uploadOnCloudinary(path))
         );
 
+        // ✅ Delete temp files
         await Promise.all(
             imagePaths.map((path) => fs.unlink(path).catch(() => {}))
         );
 
-        // ✅ TAG PARSING (IMPORTANT)
-        const parsedTags =
-            typeof tags === "string"
-                ? tags.split(",").map((t) => t.trim())
-                : Array.isArray(tags)
-                ? tags
-                : [];
+        // ✅ TAG PARSING (SAFE)
+        let parsedTags = [];
+        if (tags) {
+            if (typeof tags === "string") {
+                parsedTags = tags
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter((t) => t.length > 0);
+            } else if (Array.isArray(tags)) {
+                parsedTags = tags;
+            }
+        }
 
         const product = await Product.create({
             name,
@@ -69,8 +71,6 @@ const addProduct = asyncHandler(async (req, res) => {
             brand: brand?.trim() || "",
             type: type?.trim() || "",
             bestSeller: bestSeller === "true" || bestSeller === true,
-
-            // ✅ SAVE TAGS
             tags: parsedTags,
 
             image1: uploads[0].url,
@@ -84,6 +84,7 @@ const addProduct = asyncHandler(async (req, res) => {
         );
 
     } catch (error) {
+        console.error(error);
         throw new ApiError(500, "Error uploading product images");
     }
 });
@@ -96,7 +97,7 @@ const listProduct = asyncHandler(async (req, res) => {
     const products = await Product.find({}).sort({ createdAt: -1 });
 
     return res.status(200).json(
-        new ApiResponse(200, products, "Products fetched")
+        new ApiResponse(200, products, "Products fetched successfully")
     );
 });
 
@@ -122,7 +123,7 @@ const removeProduct = asyncHandler(async (req, res) => {
 
 
 // =====================================================
-// ✏️ UPDATE PRODUCT (FIXED)
+// ✏️ UPDATE PRODUCT
 // =====================================================
 const updateProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -136,7 +137,7 @@ const updateProduct = asyncHandler(async (req, res) => {
         brand,
         type,
         bestSeller,
-        tags // ✅ NEW
+        tags
     } = req.body;
 
     const product = await Product.findById(id);
@@ -161,17 +162,25 @@ const updateProduct = asyncHandler(async (req, res) => {
         );
     }
 
+    // ✅ Delete temp files
     await Promise.all(
         cleanupPaths.map((path) => fs.unlink(path).catch(() => {}))
     );
 
     // ✅ TAG PARSING
-    const parsedTags =
-        typeof tags === "string"
-            ? tags.split(",").map((t) => t.trim())
-            : Array.isArray(tags)
-            ? tags
-            : undefined;
+    let parsedTags;
+    if (tags !== undefined) {
+        if (typeof tags === "string") {
+            parsedTags = tags
+                .split(",")
+                .map((t) => t.trim())
+                .filter((t) => t.length > 0);
+        } else if (Array.isArray(tags)) {
+            parsedTags = tags;
+        } else {
+            parsedTags = [];
+        }
+    }
 
     const updateData = {
         ...(name && { name }),
@@ -184,7 +193,7 @@ const updateProduct = asyncHandler(async (req, res) => {
         ...(bestSeller !== undefined && {
             bestSeller: bestSeller === "true" || bestSeller === true
         }),
-        ...(parsedTags !== undefined && { tags: parsedTags }), // ✅ IMPORTANT
+        ...(parsedTags !== undefined && { tags: parsedTags }),
         ...updatedImages,
     };
 
@@ -209,6 +218,7 @@ const getProduct = asyncHandler(async (req, res) => {
     const product = await Product.findById(id);
     if (!product) throw new ApiError(404, "Product not found");
 
+    // ✅ Track user activity
     if (req.user?._id) {
         await UserActivity.findOneAndUpdate(
             {
@@ -228,7 +238,7 @@ const getProduct = asyncHandler(async (req, res) => {
 
 
 // =====================================================
-// 🔎 SEARCH PRODUCT
+// 🔎 SEARCH PRODUCT (UPDATED WITH TAGS)
 // =====================================================
 const searchProduct = asyncHandler(async (req, res) => {
     const query = req.query.query?.trim();
@@ -253,7 +263,7 @@ const searchProduct = asyncHandler(async (req, res) => {
                     { subCategory: regex },
                     { brand: regex },
                     { type: regex },
-                    { tags: regex }, // ✅ ADD THIS (VERY IMPORTANT)
+                    { tags: regex }, // ✅ VERY IMPORTANT
                 ],
             };
         }),
