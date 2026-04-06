@@ -1,5 +1,6 @@
 import { Router } from "express";
 import upload from "../middleware/muter.middleware.js";
+import { uploadMultiple } from "../middleware/muter.middleware.js";
 
 import { 
     addProduct, 
@@ -23,15 +24,7 @@ router.route("/search").get(searchProduct);
 router.route("/admin/list").get( listProduct);
 
 // Add Product (Specific static path, protected)
-router.route("/addproduct").post(
-    
-    upload.fields([
-        {name: "image1", maxCount: 1},
-        {name: "image2", maxCount: 1},
-        {name: "image3", maxCount: 1},
-        {name: "image4", maxCount: 1},
-    ]),
-    addProduct
+router.route("/addproduct").post(uploadMultiple,addProduct
 );
 
 // Get Product by Category ID (Specific dynamic path)

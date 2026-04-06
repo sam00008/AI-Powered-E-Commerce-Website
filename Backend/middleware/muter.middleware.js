@@ -1,8 +1,16 @@
 import multer from "multer";
+import fs from "fs";
+
+const uploadPath = "./public/temp";
+
+// ✅ Ensure folder exists
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./public"); // temporary folder
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
@@ -11,7 +19,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Allow multiple optional fields
 export const uploadMultiple = upload.fields([
   { name: "image1", maxCount: 1 },
   { name: "image2", maxCount: 1 },

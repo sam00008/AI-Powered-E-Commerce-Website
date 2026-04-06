@@ -57,6 +57,14 @@ app.use("/api/order", orderRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/recommend", recomendationRoutes)
 
+app.use((err, req, res, next) => {
+  console.error("ERROR:", err);
+
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
+});
 app.get("/", (req, res) => {
   res.send("API is running...");
 });

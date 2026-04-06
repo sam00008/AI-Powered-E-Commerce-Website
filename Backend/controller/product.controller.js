@@ -78,7 +78,8 @@ const addProduct = asyncHandler(async (req, res) => {
             image3: uploads[2].url,
             image4: uploads[3].url,
         });
-
+         console.log("BODY:", req.body);
+         console.log("FILES:", req.files);
         return res.status(201).json(
             new ApiResponse(201, product, "Product added successfully")
         );
