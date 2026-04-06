@@ -1,4 +1,4 @@
-// src/pages/Add.jsx (FINAL CORRECTED)
+// src/pages/Add.jsx (FINAL STABLE VERSION)
 
 import React, { useState } from "react";
 
@@ -24,7 +24,9 @@ function Add() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Handle input
+  // =========================
+  // HANDLE INPUT
+  // =========================
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -34,9 +36,13 @@ function Add() {
     }));
   };
 
-  // Handle image upload
+  // =========================
+  // HANDLE IMAGE
+  // =========================
   const handleImageChange = (e) => {
     const { name, files } = e.target;
+
+    if (!files || !files[0]) return;
 
     setImages((prev) => ({
       ...prev,
@@ -44,14 +50,16 @@ function Add() {
     }));
   };
 
-  // Submit
+  // =========================
+  // SUBMIT
+  // =========================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      // ✅ Required fields validation
+      // ✅ Validate required fields
       const required = ["name", "description", "price", "category", "subCategory"];
       for (let field of required) {
         if (!formData[field]) {
@@ -61,7 +69,7 @@ function Add() {
         }
       }
 
-      // ✅ Image validation
+      // ✅ Validate images
       for (let img of ["image1", "image2", "image3", "image4"]) {
         if (!images[img]) {
           setMessage(`❌ Please upload ${img}`);
@@ -70,9 +78,10 @@ function Add() {
         }
       }
 
+      // ✅ Create FormData
       const form = new FormData();
 
-      // Append form fields
+      // Append text fields
       Object.entries(formData).forEach(([key, value]) => {
         form.append(key, value);
       });
@@ -82,6 +91,14 @@ function Add() {
         form.append(key, file);
       });
 
+      // ✅ DEBUG (VERY IMPORTANT)
+      for (let [key, value] of form.entries()) {
+        console.log(key, value);
+      }
+
+      // =========================
+      // API CALL
+      // =========================
       const res = await fetch(
         "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/product/addproduct",
         {
@@ -91,12 +108,15 @@ function Add() {
         }
       );
 
-      // ✅ Handle non-JSON error (VERY IMPORTANT FIX)
+      // ✅ HANDLE RAW RESPONSE (FIXES '<!DOCTYPE' ERROR)
+      const text = await res.text();
+      console.log("RAW RESPONSE:", text);
+
       let data;
       try {
-        data = await res.json();
+        data = JSON.parse(text);
       } catch {
-        throw new Error("Server returned invalid response (HTML instead of JSON)");
+        throw new Error("Server returned HTML instead of JSON");
       }
 
       if (res.ok) {
@@ -126,13 +146,16 @@ function Add() {
       }
 
     } catch (err) {
-      console.error(err);
+      console.error("ERROR:", err);
       setMessage(`❌ ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // UI
+  // =========================
   return (
     <div className="flex justify-center items-center bg-gray-100 min-h-screen px-4">
       <div className="bg-white shadow-md rounded-lg p-8 w-full max-w-4xl">
@@ -224,6 +247,7 @@ function Add() {
                 key={img}
                 type="file"
                 name={img}
+                accept="image/*"
                 onChange={handleImageChange}
               />
             ))}
