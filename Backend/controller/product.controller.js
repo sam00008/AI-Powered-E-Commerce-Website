@@ -7,7 +7,7 @@ import UserActivity from "../model/userActivityModel.js";
 import fs from "fs/promises";
 
 // =====================================================
-// 🟢 ADD PRODUCT
+// 🟢 ADD PRODUCT (FIXED)
 // =====================================================
 const addProduct = asyncHandler(async (req, res) => {
     const {
@@ -18,10 +18,10 @@ const addProduct = asyncHandler(async (req, res) => {
         subCategory,
         brand,
         type,
-        bestSeller
+        bestSeller,
+        tags // ✅ NEW
     } = req.body;
 
-    // ✅ Validation
     if (!name || !description || !price || !category || !subCategory) {
         throw new ApiError(400, "All required fields must be filled");
     }
@@ -44,17 +44,21 @@ const addProduct = asyncHandler(async (req, res) => {
     ];
 
     try {
-        // ✅ Upload images in parallel
         const uploads = await Promise.all(
             imagePaths.map((path) => uploadOnCloudinary(path))
         );
 
-        // ✅ Cleanup local files
         await Promise.all(
-            imagePaths.map((path) =>
-                fs.unlink(path).catch(() => {})
-            )
+            imagePaths.map((path) => fs.unlink(path).catch(() => {}))
         );
+
+        // ✅ TAG PARSING (IMPORTANT)
+        const parsedTags =
+            typeof tags === "string"
+                ? tags.split(",").map((t) => t.trim())
+                : Array.isArray(tags)
+                ? tags
+                : [];
 
         const product = await Product.create({
             name,
@@ -65,6 +69,10 @@ const addProduct = asyncHandler(async (req, res) => {
             brand: brand?.trim() || "",
             type: type?.trim() || "",
             bestSeller: bestSeller === "true" || bestSeller === true,
+
+            // ✅ SAVE TAGS
+            tags: parsedTags,
+
             image1: uploads[0].url,
             image2: uploads[1].url,
             image3: uploads[2].url,
@@ -88,11 +96,7 @@ const listProduct = asyncHandler(async (req, res) => {
     const products = await Product.find({}).sort({ createdAt: -1 });
 
     return res.status(200).json(
-        new ApiResponse(
-            200,
-            products,
-            products.length ? "Products fetched" : "No products found"
-        )
+        new ApiResponse(200, products, "Products fetched")
     );
 });
 
@@ -118,7 +122,7 @@ const removeProduct = asyncHandler(async (req, res) => {
 
 
 // =====================================================
-// ✏️ UPDATE PRODUCT
+// ✏️ UPDATE PRODUCT (FIXED)
 // =====================================================
 const updateProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -131,7 +135,8 @@ const updateProduct = asyncHandler(async (req, res) => {
         subCategory,
         brand,
         type,
-        bestSeller
+        bestSeller,
+        tags // ✅ NEW
     } = req.body;
 
     const product = await Product.findById(id);
@@ -156,12 +161,17 @@ const updateProduct = asyncHandler(async (req, res) => {
         );
     }
 
-    // ✅ Cleanup temp files
     await Promise.all(
-        cleanupPaths.map((path) =>
-            fs.unlink(path).catch(() => {})
-        )
+        cleanupPaths.map((path) => fs.unlink(path).catch(() => {}))
     );
+
+    // ✅ TAG PARSING
+    const parsedTags =
+        typeof tags === "string"
+            ? tags.split(",").map((t) => t.trim())
+            : Array.isArray(tags)
+            ? tags
+            : undefined;
 
     const updateData = {
         ...(name && { name }),
@@ -174,6 +184,7 @@ const updateProduct = asyncHandler(async (req, res) => {
         ...(bestSeller !== undefined && {
             bestSeller: bestSeller === "true" || bestSeller === true
         }),
+        ...(parsedTags !== undefined && { tags: parsedTags }), // ✅ IMPORTANT
         ...updatedImages,
     };
 
@@ -196,10 +207,8 @@ const getProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const product = await Product.findById(id);
-
     if (!product) throw new ApiError(404, "Product not found");
 
-    // ✅ Track user activity
     if (req.user?._id) {
         await UserActivity.findOneAndUpdate(
             {
@@ -244,6 +253,7 @@ const searchProduct = asyncHandler(async (req, res) => {
                     { subCategory: regex },
                     { brand: regex },
                     { type: regex },
+                    { tags: regex }, // ✅ ADD THIS (VERY IMPORTANT)
                 ],
             };
         }),
@@ -252,13 +262,7 @@ const searchProduct = asyncHandler(async (req, res) => {
     const products = await Product.find(filter);
 
     return res.status(200).json(
-        new ApiResponse(
-            200,
-            products,
-            products.length
-                ? "Search results fetched"
-                : "No matching products"
-        )
+        new ApiResponse(200, products, "Search results fetched")
     );
 });
 
