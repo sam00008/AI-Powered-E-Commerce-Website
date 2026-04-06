@@ -22,7 +22,6 @@ const addProduct = asyncHandler(async (req, res) => {
         tags
     } = req.body;
 
-    // ✅ VALIDATION
     if (!name || !description || !price || !category || !subCategory) {
         throw new ApiError(400, "All required fields must be filled");
     }
@@ -44,12 +43,9 @@ const addProduct = asyncHandler(async (req, res) => {
             imagePaths.map((path) => uploadOnCloudinary(path))
         );
 
-        // ✅ Delete temp files
-        await Promise.all(
-            imagePaths.map((path) => fs.unlink(path).catch(() => {}))
-        );
+        // ❌ REMOVE FILE DELETE FROM HERE
 
-        // ✅ TAG PARSING (SAFE)
+        // ✅ TAG PARSING
         let parsedTags = [];
         if (tags) {
             if (typeof tags === "string") {
@@ -73,23 +69,22 @@ const addProduct = asyncHandler(async (req, res) => {
             bestSeller: bestSeller === "true" || bestSeller === true,
             tags: parsedTags,
 
-            image1: uploads[0].url,
-            image2: uploads[1].url,
-            image3: uploads[2].url,
-            image4: uploads[3].url,
+            // ✅ FIXED HERE
+            image1: uploads[0]?.secure_url,
+            image2: uploads[1]?.secure_url,
+            image3: uploads[2]?.secure_url,
+            image4: uploads[3]?.secure_url,
         });
-         console.log("BODY:", req.body);
-         console.log("FILES:", req.files);
+
         return res.status(201).json(
             new ApiResponse(201, product, "Product added successfully")
         );
 
     } catch (error) {
-        console.error(error);
-        throw new ApiError(500, "Error uploading product images");
+        console.error("UPLOAD ERROR:", error);
+        throw new ApiError(500, error.message || "Error uploading product images");
     }
 });
-
 
 // =====================================================
 // 📦 LIST PRODUCTS
