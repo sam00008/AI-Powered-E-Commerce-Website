@@ -1,3 +1,4 @@
+// config/cloudinary.js
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 
@@ -8,18 +9,22 @@ const uploadOnCloudinary = async (filePath) => {
         api_secret: process.env.CLOUDINARY_SECERET
     });
     try {
-        if (!filePath) {
-            return null;
-        }
-        const uploadResult = await cloudinary.uploader.upload
-            (filePath)
-        return uploadResult.secure_url
+        if (!filePath) return null;
+        
+        const uploadResult = await cloudinary.uploader.upload(filePath, {
+            resource_type: "auto"
+        });
+        
+        return uploadResult.secure_url; // Returns the string URL
 
     } catch (error) {
-        fs.unlinkSync(filePath)
-        console.log(error);
+        // Only attempt to delete if the file actually exists
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        console.log("Cloudinary Upload Error:", error);
+        return null;
     }
-
 }
 
 export default uploadOnCloudinary;

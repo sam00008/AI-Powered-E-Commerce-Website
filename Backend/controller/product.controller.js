@@ -9,6 +9,17 @@ import fs from "fs/promises";
 // =====================================================
 // 🟢 ADD PRODUCT
 // =====================================================
+import { asyncHandler } from "../utils/async-handler.js";
+import uploadOnCloudinary from "../config/cloudinary.js";
+import Product from "../model/productModel.js";
+import { ApiError } from "../utils/api_Error.js";
+import { ApiResponse } from "../utils/api_Response.js";
+import UserActivity from "../model/userActivityModel.js";
+import fs from "fs/promises"; // Keep this as is
+
+// =====================================================
+// 🟢 ADD PRODUCT
+// =====================================================
 const addProduct = asyncHandler(async (req, res) => {
     const {
         name,
@@ -27,8 +38,7 @@ const addProduct = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All required fields must be filled");
     }
 
-    // 2. Image Presence Validation
-    // Check if req.files exists and contains all 4 required keys
+    // 2. Image Presence Validation (Schema requires 4)
     if (
         !req.files || 
         !req.files.image1 || 
@@ -48,12 +58,11 @@ const addProduct = asyncHandler(async (req, res) => {
 
     try {
         // 3. Upload to Cloudinary
-        // Note: your utility returns the string URL directly
         const uploads = await Promise.all(
             imagePaths.map((path) => uploadOnCloudinary(path))
         );
 
-        // 4. Verify all uploads returned a string URL
+        // 4. Verify all uploads successful
         if (uploads.some(url => !url)) {
             throw new ApiError(500, "Failed to upload one or more images to Cloudinary");
         }
@@ -66,8 +75,7 @@ const addProduct = asyncHandler(async (req, res) => {
                 : tags;
         }
 
-        // 6. Create Product 
-        // FIXED: Since 'uploads' is an array of strings (URLs), use them directly.
+        // 6. Create Product
         const product = await Product.create({
             name,
             description,
@@ -78,27 +86,23 @@ const addProduct = asyncHandler(async (req, res) => {
             type: type?.trim() || "",
             bestSeller: bestSeller === "true" || bestSeller === true,
             tags: parsedTags,
-            image1: uploads[0], // These are now guaranteed strings
+            image1: uploads[0], 
             image2: uploads[1],
             image3: uploads[2],
             image4: uploads[3],
         });
 
-        // 7. Cleanup local files after DB success
-        imagePaths.forEach((path) => {
-            if (fs.existsSync(path)) fs.unlinkSync(path);
-        });
+        // 7. Cleanup using fs/promises (correct API)
+        await Promise.all(imagePaths.map(path => fs.unlink(path).catch(() => {})));
 
         return res.status(201).json(
             new ApiResponse(201, product, "Product added successfully")
         );
 
     } catch (error) {
-        // 8. Error Cleanup: Delete local files if anything fails
-        imagePaths.forEach((path) => {
-            if (fs.existsSync(path)) fs.unlinkSync(path);
-        });
-
+        // 8. Cleanup on error
+        await Promise.all(imagePaths.map(path => fs.unlink(path).catch(() => {})));
+        
         console.error("ADD PRODUCT ERROR:", error);
         throw new ApiError(error.statusCode || 500, error.message || "Internal Server Error");
     }
