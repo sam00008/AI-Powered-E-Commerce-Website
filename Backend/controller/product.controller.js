@@ -6,20 +6,7 @@ import { ApiResponse } from "../utils/api_Response.js";
 import UserActivity from "../model/userActivityModel.js";
 import fs from "fs/promises";
 
-// =====================================================
-// 🟢 ADD PRODUCT
-// =====================================================
-import { asyncHandler } from "../utils/async-handler.js";
-import uploadOnCloudinary from "../config/cloudinary.js";
-import Product from "../model/productModel.js";
-import { ApiError } from "../utils/api_Error.js";
-import { ApiResponse } from "../utils/api_Response.js";
-import UserActivity from "../model/userActivityModel.js";
-import fs from "fs/promises"; // Keep this as is
 
-// =====================================================
-// 🟢 ADD PRODUCT
-// =====================================================
 const addProduct = asyncHandler(async (req, res) => {
     const {
         name,
