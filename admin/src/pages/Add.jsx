@@ -1,4 +1,5 @@
-// src/pages/Add.jsx
+// src/pages/Add.jsx (Updated for Recommendation System)
+
 import React, { useState } from "react";
 import { IoCloudUploadOutline } from "react-icons/io5";
 
@@ -11,6 +12,11 @@ function Add() {
     price: "",
     category: "",
     subCategory: "",
+    gender: "",
+    color: "",
+    material: "",
+    tags: "",
+    keywords: "",
     bestSeller: false,
   });
 
@@ -24,7 +30,6 @@ function Add() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Handle text, select, and checkbox inputs
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -33,7 +38,6 @@ function Add() {
     }));
   };
 
-  // Handle image uploads
   const handleImageChange = (e) => {
     const { name, files } = e.target;
     setImages((prev) => ({
@@ -42,66 +46,48 @@ function Add() {
     }));
   };
 
-  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      const requiredFields = ["name", "description", "price", "category", "subCategory"];
-      for (let field of requiredFields) {
-        if (!formData[field]) {
-          setMessage(`❌ Please fill ${field}`);
-          setLoading(false);
-          return;
-        }
-      }
-
-      for (let img of ["image1", "image2", "image3", "image4"]) {
-        if (!images[img]) {
-          setMessage(`❌ Please upload ${img}`);
-          setLoading(false);
-          return;
-        }
-      }
-
       const form = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
+
+      // ✅ Convert tags & keywords to array
+      const updatedData = {
+        ...formData,
+        tags: formData.tags.split(",").map((t) => t.trim()),
+        keywords: formData.keywords.split(",").map((k) => k.trim()),
+      };
+
+      Object.entries(updatedData).forEach(([key, value]) => {
         form.append(key, value);
       });
+
       Object.entries(images).forEach(([key, file]) => {
         form.append(key, file);
       });
 
-      // ✅ Updated backend URL
-      const res = await fetch("https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/product/addproduct", {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      });
+      const res = await fetch(
+        "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/product/addproduct",
+        {
+          method: "POST",
+          body: form,
+          credentials: "include",
+        }
+      );
 
       const data = await res.json();
 
       if (res.ok) {
         setMessage("✅ Product added successfully!");
-        setFormData({
-          name: "",
-          brand: "",
-          type: "",
-          description: "",
-          price: "",
-          category: "",
-          subCategory: "",
-          bestSeller: false,
-        });
-        setImages({ image1: null, image2: null, image3: null, image4: null });
       } else {
-        setMessage(`❌ Error: ${data.message || "Failed to add product"}`);
+        setMessage(`❌ ${data.message}`);
       }
     } catch (err) {
       console.error(err);
-      setMessage("❌ Network or server error");
+      setMessage("❌ Server error");
     } finally {
       setLoading(false);
     }
@@ -110,165 +96,60 @@ function Add() {
   return (
     <div className="flex justify-center items-center bg-gray-100 min-h-screen px-4">
       <div className="bg-white shadow-md rounded-lg p-8 w-full max-w-4xl">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
-          Add New Product
+        <h2 className="text-2xl font-semibold mb-6 text-center">
+          Add Product (AI Ready)
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Name & Price */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              name="name"
-              placeholder="Product Name"
-              value={formData.name}
-              onChange={handleChange}
-              className="border rounded p-2 w-full"
-              required
-            />
-            <input
-              type="number"
-              name="price"
-              placeholder="Price"
-              value={formData.price}
-              onChange={handleChange}
-              className="border rounded p-2 w-full"
-              required
-            />
-          </div>
 
-          {/* Brand & Type */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              name="brand"
-              placeholder="Brand (e.g., Nike, Levi’s)"
-              value={formData.brand}
-              onChange={handleChange}
-              className="border rounded p-2 w-full"
-            />
-            <input
-              type="text"
-              name="type"
-              placeholder="Type (e.g., T-Shirt, Jeans)"
-              value={formData.type}
-              onChange={handleChange}
-              className="border rounded p-2 w-full"
-            />
-          </div>
+          {/* BASIC */}
+          <input name="name" placeholder="Product Name" onChange={handleChange} className="border p-2 w-full" />
+          <input name="price" placeholder="Price" onChange={handleChange} className="border p-2 w-full" />
 
-          {/* Category (Radio Buttons) */}
-          <div>
-            <label className="block text-gray-700 mb-2 font-medium">Category:</label>
-            <div className="flex gap-6">
-              {["Men", "Women", "Kids"].map((cat) => (
-                <label key={cat} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="category"
-                    value={cat}
-                    checked={formData.category === cat}
-                    onChange={handleChange}
-                    className="w-4 h-4 text-[#fd7f20] focus:ring-[#fd7f20]"
-                  />
-                  <span className="text-gray-700">{cat}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          {/* NEW FIELDS */}
+          <input name="brand" placeholder="Brand" onChange={handleChange} className="border p-2 w-full" />
+          <input name="type" placeholder="Type (T-shirt, Jeans)" onChange={handleChange} className="border p-2 w-full" />
 
-          {/* Subcategory */}
-          <div>
-            <label className="block text-gray-700 mb-2 font-medium">Subcategory:</label>
-            <select
-              name="subCategory"
-              value={formData.subCategory}
-              onChange={handleChange}
-              className="border rounded p-2 w-full bg-white"
-              required
-            >
-              <option value="">Select Subcategory</option>
-              <option value="T-Shirts">T-Shirts</option>
-              <option value="Shirts">Shirts</option>
-              <option value="Jeans">Jeans</option>
-              <option value="Shorts">Shorts</option>
-              <option value="Dresses">Dresses</option>
-              <option value="Jackets">Jackets</option>
-            </select>
-          </div>
+          <input name="color" placeholder="Color (black, red)" onChange={handleChange} className="border p-2 w-full" />
+          <input name="material" placeholder="Material (cotton, denim)" onChange={handleChange} className="border p-2 w-full" />
 
-          {/* Description */}
-          <textarea
-            name="description"
-            placeholder="Product Description"
-            value={formData.description}
+          <input name="gender" placeholder="Gender (men/women)" onChange={handleChange} className="border p-2 w-full" />
+
+          {/* 🔥 IMPORTANT FOR AI */}
+          <input
+            name="tags"
+            placeholder="Tags (comma separated: casual, summer, party)"
             onChange={handleChange}
-            rows={4}
-            className="border rounded p-2 w-full"
-            required
+            className="border p-2 w-full"
           />
 
-          {/* Bestseller */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              name="bestSeller"
-              checked={formData.bestSeller}
-              onChange={handleChange}
-              className="w-4 h-4"
-            />
-            <label className="text-gray-700">Mark as Best Seller</label>
-          </div>
+          <input
+            name="keywords"
+            placeholder="Keywords (nike, tshirt, black)"
+            onChange={handleChange}
+            className="border p-2 w-full"
+          />
 
-          {/* Images */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+          <textarea
+            name="description"
+            placeholder="Description"
+            onChange={handleChange}
+            className="border p-2 w-full"
+          />
+
+          {/* IMAGES */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {["image1", "image2", "image3", "image4"].map((img) => (
-              <label
-                key={img}
-                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg h-32 cursor-pointer hover:border-[#fd7f20] transition"
-              >
-                <IoCloudUploadOutline size={32} className="text-gray-400 mb-2" />
-                <span className="text-sm text-gray-500">
-                  {images[img]?.name || "Upload Image"}
-                </span>
-                <input
-                  type="file"
-                  name={img}
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  required={!images[img]}
-                />
-                {images[img] && (
-                  <img
-                    src={URL.createObjectURL(images[img])}
-                    alt="preview"
-                    className="w-16 h-16 object-cover rounded mt-1"
-                  />
-                )}
-              </label>
+              <input key={img} type="file" name={img} onChange={handleImageChange} />
             ))}
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#fd7f20] text-white py-2 rounded-md hover:bg-[#e96d15] transition mt-6"
-          >
-            {loading ? "Uploading..." : "Add Product"}
+          <button className="bg-orange-500 text-white p-2 w-full">
+            {loading ? "Adding..." : "Add Product"}
           </button>
         </form>
 
-        {message && (
-          <p
-            className={`mt-4 text-center ${
-              message.includes("✅") ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {message}
-          </p>
-        )}
+        {message && <p className="mt-4 text-center">{message}</p>}
       </div>
     </div>
   );
