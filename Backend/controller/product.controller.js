@@ -38,12 +38,21 @@ const addProduct = asyncHandler(async (req, res) => {
     ];
 
     try {
-        // ✅ Upload images
+        // ✅ Upload images to Cloudinary
         const uploads = await Promise.all(
             imagePaths.map((path) => uploadOnCloudinary(path))
         );
 
-        // ❌ REMOVE FILE DELETE FROM HERE
+        // ✅ Verify all uploads were successful
+        const failedUploads = uploads.filter((upload) => !upload);
+        if (failedUploads.length > 0) {
+            throw new ApiError(500, "Failed to upload one or more images to Cloudinary");
+        }
+
+        // ✅ Delete local temp files ONLY AFTER successful Cloudinary upload
+        await Promise.all(
+            imagePaths.map((path) => fs.unlink(path).catch(() => console.log(`Failed to delete temp file: ${path}`)))
+        );
 
         // ✅ TAG PARSING
         let parsedTags = [];
@@ -69,11 +78,11 @@ const addProduct = asyncHandler(async (req, res) => {
             bestSeller: bestSeller === "true" || bestSeller === true,
             tags: parsedTags,
 
-            // ✅ FIXED HERE
-            image1: uploads[0]?.secure_url,
-            image2: uploads[1]?.secure_url,
-            image3: uploads[2]?.secure_url,
-            image4: uploads[3]?.secure_url,
+            // ✅ FIXED: Safely check for both `url` and `secure_url`
+            image1: uploads[0]?.url || uploads[0]?.secure_url,
+            image2: uploads[1]?.url || uploads[1]?.secure_url,
+            image3: uploads[2]?.url || uploads[2]?.secure_url,
+            image4: uploads[3]?.url || uploads[3]?.secure_url,
         });
 
         return res.status(201).json(
@@ -82,6 +91,12 @@ const addProduct = asyncHandler(async (req, res) => {
 
     } catch (error) {
         console.error("UPLOAD ERROR:", error);
+        
+        // Safety cleanup: Ensure temp files are deleted even if upload/DB creation fails
+        await Promise.all(
+            imagePaths.map((path) => fs.unlink(path).catch(() => {}))
+        );
+
         throw new ApiError(500, error.message || "Error uploading product images");
     }
 });
@@ -152,7 +167,9 @@ const updateProduct = asyncHandler(async (req, res) => {
                     cleanupPaths.push(path);
 
                     const result = await uploadOnCloudinary(path);
-                    updatedImages[key] = result.url;
+                    if (result) {
+                        updatedImages[key] = result.url || result.secure_url;
+                    }
                 }
             })
         );
