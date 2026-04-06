@@ -22,12 +22,21 @@ const addProduct = asyncHandler(async (req, res) => {
         tags
     } = req.body;
 
+    // 1. Basic Field Validation
     if (!name || !description || !price || !category || !subCategory) {
         throw new ApiError(400, "All required fields must be filled");
     }
 
-    if (!req.files || !req.files.image1 || !req.files.image2 || !req.files.image3 || !req.files.image4) {
-        throw new ApiError(400, "All four images are required");
+    // 2. Image Presence Validation
+    // Check if req.files exists and contains all 4 required keys
+    if (
+        !req.files || 
+        !req.files.image1 || 
+        !req.files.image2 || 
+        !req.files.image3 || 
+        !req.files.image4
+    ) {
+        throw new ApiError(400, "All four images (image1, image2, image3, image4) are required");
     }
 
     const imagePaths = [
@@ -38,35 +47,27 @@ const addProduct = asyncHandler(async (req, res) => {
     ];
 
     try {
-        // ✅ Upload images to Cloudinary
+        // 3. Upload to Cloudinary
+        // Note: your utility returns the string URL directly
         const uploads = await Promise.all(
             imagePaths.map((path) => uploadOnCloudinary(path))
         );
 
-        // ✅ Verify all uploads were successful
-        const failedUploads = uploads.filter((upload) => !upload);
-        if (failedUploads.length > 0) {
+        // 4. Verify all uploads returned a string URL
+        if (uploads.some(url => !url)) {
             throw new ApiError(500, "Failed to upload one or more images to Cloudinary");
         }
 
-        // ✅ Delete local temp files ONLY AFTER successful Cloudinary upload
-        await Promise.all(
-            imagePaths.map((path) => fs.unlink(path).catch(() => console.log(`Failed to delete temp file: ${path}`)))
-        );
-
-        // ✅ TAG PARSING
+        // 5. Tag Parsing
         let parsedTags = [];
         if (tags) {
-            if (typeof tags === "string") {
-                parsedTags = tags
-                    .split(",")
-                    .map((t) => t.trim())
-                    .filter((t) => t.length > 0);
-            } else if (Array.isArray(tags)) {
-                parsedTags = tags;
-            }
+            parsedTags = typeof tags === "string" 
+                ? tags.split(",").map((t) => t.trim()).filter((t) => t.length > 0) 
+                : tags;
         }
 
+        // 6. Create Product 
+        // FIXED: Since 'uploads' is an array of strings (URLs), use them directly.
         const product = await Product.create({
             name,
             description,
@@ -77,12 +78,15 @@ const addProduct = asyncHandler(async (req, res) => {
             type: type?.trim() || "",
             bestSeller: bestSeller === "true" || bestSeller === true,
             tags: parsedTags,
+            image1: uploads[0], // These are now guaranteed strings
+            image2: uploads[1],
+            image3: uploads[2],
+            image4: uploads[3],
+        });
 
-            // ✅ FIXED: Safely check for both `url` and `secure_url`
-            image1: uploads[0]?.url || uploads[0]?.secure_url,
-            image2: uploads[1]?.url || uploads[1]?.secure_url,
-            image3: uploads[2]?.url || uploads[2]?.secure_url,
-            image4: uploads[3]?.url || uploads[3]?.secure_url,
+        // 7. Cleanup local files after DB success
+        imagePaths.forEach((path) => {
+            if (fs.existsSync(path)) fs.unlinkSync(path);
         });
 
         return res.status(201).json(
@@ -90,14 +94,13 @@ const addProduct = asyncHandler(async (req, res) => {
         );
 
     } catch (error) {
-        console.error("UPLOAD ERROR:", error);
-        
-        // Safety cleanup: Ensure temp files are deleted even if upload/DB creation fails
-        await Promise.all(
-            imagePaths.map((path) => fs.unlink(path).catch(() => {}))
-        );
+        // 8. Error Cleanup: Delete local files if anything fails
+        imagePaths.forEach((path) => {
+            if (fs.existsSync(path)) fs.unlinkSync(path);
+        });
 
-        throw new ApiError(500, error.message || "Error uploading product images");
+        console.error("ADD PRODUCT ERROR:", error);
+        throw new ApiError(error.statusCode || 500, error.message || "Internal Server Error");
     }
 });
 
