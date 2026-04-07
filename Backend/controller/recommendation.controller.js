@@ -1,51 +1,40 @@
+// recommendation.controller.js
+import mongoose from "mongoose";
 import Order from "../model/orderModel.js";
 import Product from "../model/productModel.js";
 import UserActivity from "../model/userActivityModel.js";
 import { ApiResponse } from "../utils/api_Response.js";
 import { ApiError } from "../utils/api_Error.js";
 import { asyncHandler } from "../utils/async-handler.js";
-import mongoose from "mongoose";
 
 // -----------------------------------------------------------
-// 1. FREQUENTLY BOUGHT TOGETHER
+// 1. FREQUENTLY BOUGHT TOGETHER (Optimized with Aggregation)
 // -----------------------------------------------------------
 export const getFrequentlyBoughtTogether = asyncHandler(async (req, res) => {
     const { productId } = req.params;
-    const limit = Number(req.query.limit) || 10; // ✅ added
+    const limit = Number(req.query.limit) || 4; 
 
     if (!mongoose.isValidObjectId(productId)) {
         throw new ApiError(400, "Invalid productId");
     }
 
-    const orders = await Order.find({
-        "items.productId": productId
-    });
+    // 🚀 Let MongoDB do the math
+    const frequentProductIds = await Order.aggregate([
+        { $match: { "items.productId": new mongoose.Types.ObjectId(productId) } },
+        { $unwind: "$items" },
+        { $match: { "items.productId": { $ne: new mongoose.Types.ObjectId(productId) } } },
+        { $group: { _id: "$items.productId", frequency: { $sum: 1 } } },
+        { $sort: { frequency: -1 } },
+        { $limit: limit }
+    ]);
 
-    const productFrequency = {};
+    const productIds = frequentProductIds.map(item => item._id);
 
-    for (const order of orders) {
-        for (const item of order.items) {
-            const id = item.productId.toString();
+    const products = await Product.find({ _id: { $in: productIds } });
 
-            if (id !== productId) {
-                productFrequency[id] = (productFrequency[id] || 0) + 1;
-            }
-        }
-    }
-
-    const sortedProducts = Object.entries(productFrequency)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit); // ✅ dynamic
-
-    const productIds = sortedProducts.map(([id]) => id);
-
-    const products = await Product.find({
-        _id: { $in: productIds }
-    });
-
-    // ✅ FIX ranking
+    // Keep highest frequency first
     const finalProducts = productIds.map(id =>
-        products.find(p => p._id.toString() === id)
+        products.find(p => p._id.toString() === id.toString())
     ).filter(Boolean);
 
     return res.status(200).json(
@@ -54,17 +43,26 @@ export const getFrequentlyBoughtTogether = asyncHandler(async (req, res) => {
 });
 
 // -----------------------------------------------------------
-// 2. PERSONALIZED RECOMMENDATIONS
+// 2. PERSONALIZED RECOMMENDATIONS (Optimized for last 30 days)
 // -----------------------------------------------------------
 export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    const limit = Number(req.query.limit) || 10; // ✅ added
+    const limit = Number(req.query.limit) || 5; 
 
-    const activities = await UserActivity.find({ userId });
+    // Only look at the last 30 days of activity to save memory
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // ✅ FIX cold start
-    if (!activities.length) {
-        const trending = await Product.find({})
+    const scoredProducts = await UserActivity.aggregate([
+        { $match: { userId: new mongoose.Types.ObjectId(userId), timestamp: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: "$productId", totalScore: { $sum: "$weight" } } },
+        { $sort: { totalScore: -1 } },
+        { $limit: limit }
+    ]);
+
+    // Handle Cold Start (New Users with no activity)
+    if (!scoredProducts.length) {
+        const trending = await Product.find({ bestSeller: true }) // Assuming you have a bestSeller flag
             .sort({ createdAt: -1 })
             .limit(limit);
 
@@ -73,26 +71,11 @@ export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
         );
     }
 
-    const score = {};
+    const productIds = scoredProducts.map(item => item._id);
+    const products = await Product.find({ _id: { $in: productIds } });
 
-    for (const act of activities) {
-        const id = act.productId.toString();
-        score[id] = (score[id] || 0) + act.weight;
-    }
-
-    const sorted = Object.entries(score)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit); // ✅ dynamic
-
-    const productIds = sorted.map(([id]) => id);
-
-    const products = await Product.find({
-        _id: { $in: productIds }
-    });
-
-    // ✅ FIX ranking
     const sortedProducts = productIds.map(id =>
-        products.find(p => p._id.toString() === id)
+        products.find(p => p._id.toString() === id.toString())
     ).filter(Boolean);
 
     return res.status(200).json(
@@ -100,23 +83,19 @@ export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
     );
 });
 
-
 // -----------------------------------------------------------
 // 3. SIMILAR PRODUCTS
 // -----------------------------------------------------------
 export const getSimilarProduct = asyncHandler(async (req, res) => {
     const { productId } = req.params;
-    const limit = Number(req.query.limit) || 10; // ✅ added
+    const limit = Number(req.query.limit) || 4; 
 
     if (!mongoose.isValidObjectId(productId)) {
         throw new ApiError(400, "Invalid productId");
     }
 
     const product = await Product.findById(productId);
-
-    if (!product) {
-        throw new ApiError(404, "Product not found");
-    }
+    if (!product) throw new ApiError(404, "Product not found");
 
     const similar = await Product.find({
         _id: { $ne: productId },
@@ -125,7 +104,7 @@ export const getSimilarProduct = asyncHandler(async (req, res) => {
             { subCategory: product.subCategory },
             ...(product.tags?.length ? [{ tags: { $in: product.tags } }] : [])
         ]
-    }).limit(limit); // ✅ dynamic
+    }).limit(limit);
 
     return res.status(200).json(
         new ApiResponse(200, similar, "Similar products fetched successfully")

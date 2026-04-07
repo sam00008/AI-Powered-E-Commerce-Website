@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+// 1. Define your backend base URL here
+const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
+
 const useRecommendations = ({ type, productId, limit = 10 }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,15 +15,20 @@ const useRecommendations = ({ type, productId, limit = 10 }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
         let url = "";
 
+        // 2. Prepend the API_BASE_URL to all your endpoints
         if (type === "personalized") {
-          url = `/api/recommend/personalized?limit=${limit}`;
+          url = `${API_BASE_URL}/api/recommend/personalized?limit=${limit}`;
         } else if (type === "frequently" && productId) {
-          url = `/api/recommend/frequently/${productId}?limit=${limit}`;
+          url = `${API_BASE_URL}/api/recommend/frequently/${productId}?limit=${limit}`;
         } else if (type === "similar" && productId) {
-          url = `/api/recommend/similar/${productId}?limit=${limit}`;
+          url = `${API_BASE_URL}/api/recommend/similar/${productId}?limit=${limit}`;
+        }
+
+        if (!url) {
+          setLoading(false);
+          return;
         }
 
         const res = await axios.get(url, { withCredentials: true });
