@@ -7,7 +7,7 @@ import Nav from "../component/Navi.jsx";
 import Footer from "../component/Footer.jsx";
 
 import useRecommendations from "../hooks/useRecommendation.js";
-import RecommendationSection from "../component/RecommendationSection.jsx"; // Ensure correct path
+import RecommendationSection from "../component/RecommendationComponent.jsx"; // Ensure correct path
 
 const ProductDetailPage = () => {
   const { id } = useParams();
