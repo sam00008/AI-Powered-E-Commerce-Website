@@ -7,8 +7,14 @@ const RecommendationSection = ({ title, products = [], loading }) => {
   }
 
   // FIX: Bulletproof check to ensure products is a valid array with items
+// Change this part:
   if (!Array.isArray(products) || products.length === 0) {
-    return null;
+    return (
+      <div className="mt-10 p-6 bg-red-50 text-red-600 rounded-lg text-center border border-red-200">
+        <p className="font-bold">Debugging Info: {title} returned 0 items.</p>
+        <p className="text-sm">Check your database or Network tab.</p>
+      </div>
+    );
   }
 
   return (
