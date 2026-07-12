@@ -1,48 +1,44 @@
-import { useEffect, useState } from "react";
+
+import { useState, useEffect } from "react";
 import axios from "axios";
 
-// 1. Define your backend base URL here
-const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
-
-const useRecommendations = ({ type, productId, limit = 10 }) => {
+const useRecommendations = ({ type, productId }) => {
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!type) return;
+  // Replace with your actual backend URL if different
+  const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/recommendations";
 
-    const fetchData = async () => {
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      if (!productId) return;
+
       try {
         setLoading(true);
-        let url = "";
+        // Map the 'type' to your exact backend routes
+        const endpoint = type === "similar" 
+          ? `/similar/${productId}` 
+          : `/frequently/${productId}`;
 
-        // 2. Prepend the API_BASE_URL to all your endpoints
-        if (type === "personalized") {
-          url = `${API_BASE_URL}/api/recommend/personalized?limit=${limit}`;
-        } else if (type === "frequently" && productId) {
-          url = `${API_BASE_URL}/api/recommend/frequently/${productId}?limit=${limit}`;
-        } else if (type === "similar" && productId) {
-          url = `${API_BASE_URL}/api/recommend/similar/${productId}?limit=${limit}`;
-        }
-
-        if (!url) {
-          setLoading(false);
-          return;
-        }
-
-        const res = await axios.get(url, { withCredentials: true });
-
-        setData(res.data.data || []);
+        const response = await axios.get(`${API_BASE_URL}${endpoint}`);
+        
+        // FIX: Extract the array from your backend's ApiResponse structure
+        // Axios wraps everything in 'data', and your ApiResponse has a 'data' property
+        const productsArray = response.data.data || []; 
+        
+        setData(productsArray);
       } catch (err) {
-        setError(err.response?.data?.message || "Error fetching recommendations");
+        console.error(`Error fetching ${type} recommendations:`, err);
+        setError(err);
+        setData([]); // Fallback to empty array on error
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [type, productId, limit]);
+    fetchRecommendations();
+  }, [type, productId]);
 
   return { data, loading, error };
 };

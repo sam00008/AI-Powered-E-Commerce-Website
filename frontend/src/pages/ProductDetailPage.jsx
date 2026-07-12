@@ -1,16 +1,13 @@
-// ProductDetailPage.jsx (Final Updated with Recommendation System)
-
 import React, { useContext, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ShopDataContext } from "../context/ShopContext.jsx";
 import { authDataContext } from "../context/authContext.jsx"; 
-import { FaHeart, FaRegHeart, FaStar } from "react-icons/fa";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
 import Nav from "../component/Navi.jsx";
 import Footer from "../component/Footer.jsx";
 
-// 🔥 NEW IMPORTS
 import useRecommendations from "../hooks/useRecommendation.js";
-import RecommendationSection from "../component/RecommendationComponent.jsx"
+import RecommendationSection from "../component/RecommendationSection.jsx"; // Ensure correct path
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -20,8 +17,6 @@ const ProductDetailPage = () => {
 
   const [product, setProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
-  const [selectedSize, setSelectedSize] = useState("");
-  const [selectedColor, setSelectedColor] = useState("");
   const [wishlist, setWishlist] = useState(false);
   const [loading, setLoading] = useState(true);
   const [cartLoading, setCartLoading] = useState(false);
@@ -29,7 +24,7 @@ const ProductDetailPage = () => {
   const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api";
   const apiUrl = `${API_BASE_URL}/product/category/${id}`;
 
-  // 🔥 RECOMMENDATION HOOKS
+  // RECOMMENDATION HOOKS
   const { data: similarProducts, loading: similarLoading } = useRecommendations({
     type: "similar",
     productId: id,
@@ -55,7 +50,7 @@ const ProductDetailPage = () => {
         setLoading(false);
       }
     };
-    fetchProduct();
+    if (id) fetchProduct();
   }, [id, apiUrl]);
 
   const handleAddToCart = async () => {
@@ -105,13 +100,16 @@ const ProductDetailPage = () => {
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
   if (!product) return <div className="flex justify-center items-center h-screen text-red-600">Product not found.</div>;
 
+  // FIX: Failsafe extraction in case the hook returns the nested ApiResponse object
+  const safeSimilarProducts = Array.isArray(similarProducts) ? similarProducts : similarProducts?.data || [];
+  const safeFrequentProducts = Array.isArray(frequentlyBought) ? frequentlyBought : frequentlyBought?.data || [];
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <Nav />
       
       <main className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-2 gap-12">
-        
-        {/* LEFT SIDE */}
+        {/* LEFT SIDE - Images */}
         <div className="flex gap-4">
           <div className="flex flex-col gap-3">
             {[product.image1, product.image2, product.image3].filter(Boolean).map((img, idx) => (
@@ -125,28 +123,27 @@ const ProductDetailPage = () => {
             ))}
           </div>
 
-          <div className="flex-1 bg-white rounded-3xl shadow-xl border border-gray-200 relative flex items-center justify-center">
-            <img src={selectedImage} alt={product.name} className="w-full h-[550px] object-contain hover:scale-105 transition" />
+          <div className="flex-1 bg-white rounded-3xl shadow-xl border border-gray-200 relative flex items-center justify-center overflow-hidden">
+            <img src={selectedImage} alt={product.name} className="w-full h-[550px] object-contain hover:scale-105 transition duration-300" />
             <button
-              className="absolute top-4 right-4 bg-white/80 p-3 rounded-full shadow-md"
+              className="absolute top-4 right-4 bg-white/80 p-3 rounded-full shadow-md hover:bg-pink-50 transition"
               onClick={() => setWishlist(!wishlist)}
             >
-              {wishlist ? <FaHeart className="text-pink-500" /> : <FaRegHeart />}
+              {wishlist ? <FaHeart className="text-pink-500 text-xl" /> : <FaRegHeart className="text-xl" />}
             </button>
           </div>
         </div>
 
-        {/* RIGHT SIDE */}
+        {/* RIGHT SIDE - Info */}
         <div className="bg-white p-8 rounded-3xl shadow-md space-y-6">
-          <h1 className="text-4xl font-bold">{product.name}</h1>
-          <p className="text-2xl">{currency}{product.price}</p>
+          <h1 className="text-4xl font-bold text-gray-800">{product.name}</h1>
+          <p className="text-3xl font-semibold text-pink-600">{currency}{product.price}</p>
 
-          {/* ACTION */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 pt-4">
             <button 
               onClick={handleAddToCart} 
               disabled={cartLoading}
-              className="bg-pink-500 text-white px-6 py-3 rounded-xl"
+              className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-4 rounded-xl transition shadow-lg disabled:opacity-70"
             >
               {cartLoading ? "ADDING..." : "Add to Cart"}
             </button>
@@ -154,41 +151,30 @@ const ProductDetailPage = () => {
             <button 
               onClick={handleBuyNow}
               disabled={cartLoading}
-              className="border px-6 py-3 rounded-xl"
+              className="border-2 border-gray-800 hover:bg-gray-800 hover:text-white font-semibold px-8 py-4 rounded-xl transition disabled:opacity-70"
             >
               Buy Now
             </button>
           </div>
 
-          <p>{product.description}</p>
+          <div className="pt-6 border-t border-gray-100">
+            <h3 className="font-semibold text-lg mb-2">Description</h3>
+            <p className="text-gray-600 leading-relaxed">{product.description}</p>
+          </div>
         </div>
       </main>
 
-      {/* OLD STATIC SECTION */}
-      <section className="container mx-auto px-4 py-12">
-        <h2 className="text-2xl font-bold mb-6">Customers also purchased</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {product.related?.map((item, idx) => (
-            <div key={idx} className="bg-white p-4 rounded-2xl shadow-md">
-              <img src={item.image} alt={item.name} className="w-full h-40 object-contain" />
-              <h3 className="mt-2 font-semibold">{item.name}</h3>
-              <p>{currency}{item.price}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 🔥 NEW AI RECOMMENDATION SECTION */}
-      <section className="container mx-auto px-4 py-12">
+      {/* AI RECOMMENDATION SECTION */}
+      <section className="container mx-auto px-4 py-12 border-t border-gray-200">
         <RecommendationSection
-          title="🔥 Frequently Bought Together"
-          products={frequentlyBought}
+          title=" Frequently Bought Together"
+          products={safeFrequentProducts}
           loading={freqLoading}
         />
 
         <RecommendationSection
-          title="🧠 Similar Products"
-          products={similarProducts}
+          title="Similar Products"
+          products={safeSimilarProducts}
           loading={similarLoading}
         />
       </section>

@@ -3,10 +3,13 @@ import { Link } from "react-router-dom";
 
 const RecommendationSection = ({ title, products = [], loading }) => {
   if (loading) {
-    return <p className="text-center py-6">Loading recommendations...</p>;
+    return <p className="text-center py-6 text-gray-500">Loading recommendations...</p>;
   }
 
-  if (!products.length) return null;
+  // FIX: Bulletproof check to ensure products is a valid array with items
+  if (!Array.isArray(products) || products.length === 0) {
+    return null;
+  }
 
   return (
     <div className="mt-10">
@@ -17,7 +20,7 @@ const RecommendationSection = ({ title, products = [], loading }) => {
           <Link
             to={`/product/${product._id}`}
             key={product._id}
-            className="bg-white rounded-lg shadow hover:shadow-lg transition p-3"
+            className="bg-white rounded-lg shadow hover:shadow-lg transition p-3 block"
           >
             <img
               src={product.image1}
@@ -29,7 +32,7 @@ const RecommendationSection = ({ title, products = [], loading }) => {
               {product.name}
             </h3>
 
-            <p className="text-gray-600 text-sm mt-1">
+            <p className="text-pink-600 font-medium text-sm mt-1">
               ₹{product.price}
             </p>
           </Link>
