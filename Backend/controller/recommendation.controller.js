@@ -1,4 +1,3 @@
-// recommendation.controller.js
 import mongoose from "mongoose";
 import Order from "../model/orderModel.js";
 import Product from "../model/productModel.js";
@@ -7,9 +6,7 @@ import { ApiResponse } from "../utils/api_Response.js";
 import { ApiError } from "../utils/api_Error.js";
 import { asyncHandler } from "../utils/async-handler.js";
 
-// -----------------------------------------------------------
-// 1. FREQUENTLY BOUGHT TOGETHER (Optimized with Aggregation)
-// -----------------------------------------------------------
+// 1. FREQUENTLY BOUGHT TOGETHER
 export const getFrequentlyBoughtTogether = asyncHandler(async (req, res) => {
     const { productId } = req.params;
     const limit = Number(req.query.limit) || 4; 
@@ -18,7 +15,6 @@ export const getFrequentlyBoughtTogether = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid productId");
     }
 
-    // 🚀 Let MongoDB do the math
     const frequentProductIds = await Order.aggregate([
         { $match: { "items.productId": new mongoose.Types.ObjectId(productId) } },
         { $unwind: "$items" },
@@ -29,7 +25,6 @@ export const getFrequentlyBoughtTogether = asyncHandler(async (req, res) => {
     ]);
 
     const productIds = frequentProductIds.map(item => item._id);
-
     const products = await Product.find({ _id: { $in: productIds } });
 
     // Keep highest frequency first
@@ -42,14 +37,17 @@ export const getFrequentlyBoughtTogether = asyncHandler(async (req, res) => {
     );
 });
 
-// -----------------------------------------------------------
-// 2. PERSONALIZED RECOMMENDATIONS (Optimized for last 30 days)
-// -----------------------------------------------------------
+
+// 2. PERSONALIZED RECOMMENDATIONS
 export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
+    // FIX: Fallback to prevent crash if auth middleware fails
+    if (!req.user || !req.user._id) {
+        throw new ApiError(401, "Unauthorized request");
+    }
+    
     const userId = req.user._id;
     const limit = Number(req.query.limit) || 5; 
 
-    // Only look at the last 30 days of activity to save memory
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -60,9 +58,8 @@ export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
         { $limit: limit }
     ]);
 
-    // Handle Cold Start (New Users with no activity)
     if (!scoredProducts.length) {
-        const trending = await Product.find({ bestSeller: true }) // Assuming you have a bestSeller flag
+        const trending = await Product.find({ bestSeller: true })
             .sort({ createdAt: -1 })
             .limit(limit);
 
@@ -83,9 +80,8 @@ export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
     );
 });
 
-// -----------------------------------------------------------
+
 // 3. SIMILAR PRODUCTS
-// -----------------------------------------------------------
 export const getSimilarProduct = asyncHandler(async (req, res) => {
     const { productId } = req.params;
     const limit = Number(req.query.limit) || 4; 
