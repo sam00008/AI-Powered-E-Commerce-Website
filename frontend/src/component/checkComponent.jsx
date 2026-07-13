@@ -6,16 +6,22 @@ import { useAuth } from "../context/authContext.jsx";
 import Footer from "../component/Footer.jsx";
 import { toast } from "react-toastify";
 
+// FIX 1: Move initialAddress outside the component so it remains a stable reference
+const initialAddress = {
+    fullName: "",
+    address: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+    phone: "",
+};
+
 export default function Checkout() {
     const navigate = useNavigate();
-
-    // Contexts
     const shop = useContext(ShopDataContext);
-    
-    // FIX 1: Do not conditionally call hooks. Just call it directly.
     const auth = useAuth(); 
 
-    // -- derive values safely
     const cart = shop?.cart || [];
     const totalPrice = shop?.totalPrice ?? cart.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0);
     const currency = shop?.currency ?? "₹";
@@ -29,32 +35,26 @@ export default function Checkout() {
     const shippingCost = 10;
     const orderTotal = Number(totalPrice || 0) + shippingCost;
 
-    const initialAddress = {
-        fullName: "",
-        address: "",
-        city: "",
-        state: "",
-        postalCode: "",
-        country: "",
-        phone: "",
-    };
-
     const [shippingAddress, setShippingAddress] = useState(initialAddress);
     const [paymentMethod, setPaymentMethod] = useState("COD"); 
     const [isFormOpen, setIsFormOpen] = useState(true);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [error, setError] = useState("");
 
-    // FIX 2: Wrapped in useCallback to prevent infinite loop in useEffect
     const makeUrl = useCallback((path) => {
         return `${API_BASE_URL.replace(/\/+$/, "")}${path.replace(/^\/*/, "/")}`;
     }, [API_BASE_URL]);
 
+    // FIX 2: Only check the specific fields we care about. 
+    // Safely cast to String in case postal codes or phones come back as Numbers from DB.
     const isAddressComplete = useCallback(() => {
-        return Object.values(shippingAddress).every((v) => typeof v === "string" && v.trim() !== "");
+        return Object.keys(initialAddress).every((key) => {
+            const v = shippingAddress[key];
+            return v !== null && v !== undefined && String(v).trim() !== "";
+        });
     }, [shippingAddress]);
 
-    // Load saved address from backend (if available)
+    // Load saved address from backend
     useEffect(() => {
         let mounted = true;
         const loadAddress = async () => {
@@ -73,8 +73,26 @@ export default function Checkout() {
                 const addr = body?.data?.address || body?.address || body?.data || body;
                 
                 if (addr && typeof addr === "object" && Object.keys(addr).length > 0) {
-                    setShippingAddress((s) => ({ ...s, ...addr }));
-                    setIsFormOpen(false);
+                    // FIX 3: Filter out MongoDB fields like _id, __v, or extra data 
+                    // so they don't corrupt the shippingAddress state.
+                    const safeAddr = {};
+                    Object.keys(initialAddress).forEach(key => {
+                        if (addr[key] !== undefined) {
+                            safeAddr[key] = addr[key];
+                        }
+                    });
+
+                    setShippingAddress((prev) => ({ ...prev, ...safeAddr }));
+                    
+                    // Check if the freshly loaded address is fully complete before hiding the form
+                    const isComplete = Object.keys(initialAddress).every(key => {
+                        const v = safeAddr[key];
+                        return v !== null && v !== undefined && String(v).trim() !== "";
+                    });
+
+                    if (isComplete) {
+                        setIsFormOpen(false);
+                    }
                 }
             } catch (err) {
                 console.debug("Could not load saved address", err);
@@ -84,7 +102,7 @@ export default function Checkout() {
         if (!loadingUser) loadAddress();
         
         return () => { mounted = false; };
-    }, [API_BASE_URL, loadingUser, makeUrl]); // makeUrl is now safe to include here
+    }, [API_BASE_URL, loadingUser, makeUrl]);
 
     // Save address to backend for reuse
     const saveAddressToServer = async (address) => {
@@ -299,7 +317,7 @@ export default function Checkout() {
                                             <input
                                                 id={key}
                                                 name={key}
-                                                value={shippingAddress[key]}
+                                                value={shippingAddress[key] || ""}
                                                 onChange={(e) => setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value })}
                                                 className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-[#fd7f20] focus:border-[#fd7f20]"
                                             />
