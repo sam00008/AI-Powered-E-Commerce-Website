@@ -38,9 +38,9 @@ export const getFrequentlyBoughtTogether = asyncHandler(async (req, res) => {
 });
 
 
-// 2. PERSONALIZED RECOMMENDATIONS
+// 2. PERSONALIZED RECOMMENDATIONS (AI-Powered Content Profiling)
 export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
-    // FIX: Fallback to prevent crash if auth middleware fails
+    // Fallback to prevent crash if auth middleware fails
     if (!req.user || !req.user._id) {
         throw new ApiError(401, "Unauthorized request");
     }
@@ -51,32 +51,89 @@ export const getPersonalizedRecommendations = asyncHandler(async (req, res) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const scoredProducts = await UserActivity.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId), timestamp: { $gte: thirtyDaysAgo } } },
-        { $group: { _id: "$productId", totalScore: { $sum: "$weight" } } },
-        { $sort: { totalScore: -1 } },
-        { $limit: limit }
+    // STEP 1: Analyze user history to find favorite categories and average price tier
+    const userTasteProfile = await UserActivity.aggregate([
+        { 
+            $match: { 
+                userId: new mongoose.Types.ObjectId(userId), 
+                timestamp: { $gte: thirtyDaysAgo } 
+            } 
+        },
+        {
+            $lookup: {
+                from: "products", // Must match your MongoDB collection name exactly
+                localField: "productId",
+                foreignField: "_id",
+                as: "productDetails"
+            }
+        },
+        { $unwind: "$productDetails" },
+        {
+            $group: {
+                _id: null,
+                interactedProductIds: { $addToSet: "$productId" },
+                preferredCategories: { $addToSet: "$productDetails.category" },
+                preferredSubCategories: { $addToSet: "$productDetails.subCategory" },
+                avgPriceTier: { $avg: "$productDetails.price" } // Determines their spending power
+            }
+        }
     ]);
 
-    if (!scoredProducts.length) {
+    // FALLBACK: If the user has no history, show trending/bestselling products
+    if (!userTasteProfile.length || !userTasteProfile[0].preferredCategories.length) {
         const trending = await Product.find({ bestSeller: true })
             .sort({ createdAt: -1 })
             .limit(limit);
 
         return res.status(200).json(
-            new ApiResponse(200, trending, "Trending products")
+            new ApiResponse(200, trending, "Trending products (No user history found)")
         );
     }
 
-    const productIds = scoredProducts.map(item => item._id);
-    const products = await Product.find({ _id: { $in: productIds } });
+    const { interactedProductIds, preferredCategories, preferredSubCategories, avgPriceTier } = userTasteProfile[0];
 
-    const sortedProducts = productIds.map(id =>
-        products.find(p => p._id.toString() === id.toString())
-    ).filter(Boolean);
+    // STEP 2: Find NEW products that match their categories, sorted by price relevance
+    const dynamicRecommendations = await Product.aggregate([
+        {
+            $match: {
+                // Do not show items they have already viewed/bought
+                _id: { $nin: interactedProductIds },
+                // Must match their preferred categories or subcategories
+                $or: [
+                    { category: { $in: preferredCategories } },
+                    { subCategory: { $in: preferredSubCategories } }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                // Calculate how close the product's price is to the user's average spending power
+                priceDistance: { $abs: { $subtract: ["$price", avgPriceTier] } }
+            }
+        },
+        { 
+            // Sort by items closest to their budget, then by newest arrivals
+            $sort: { 
+                priceDistance: 1, 
+                createdAt: -1 
+            } 
+        },
+        { $limit: limit }
+    ]);
+
+    // FALLBACK 2: If we didn't find enough matching items, pad the array with random unseen items
+    if (dynamicRecommendations.length < limit) {
+        const filledIds = dynamicRecommendations.map(p => p._id);
+        const paddingItems = await Product.find({
+            _id: { $nin: [...interactedProductIds, ...filledIds] }
+        }).limit(limit - dynamicRecommendations.length);
+
+        // Merge standard mongoose documents into our aggregation array
+        dynamicRecommendations.push(...paddingItems.map(doc => doc.toObject()));
+    }
 
     return res.status(200).json(
-        new ApiResponse(200, sortedProducts, "Personalized recommendations")
+        new ApiResponse(200, dynamicRecommendations, "Personalized recommendations generated successfully")
     );
 });
 
