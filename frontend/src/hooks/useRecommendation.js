@@ -8,7 +8,7 @@ const useRecommendations = ({ type, productId }) => {
   const [error, setError] = useState(null);
 
   // Replace with your actual backend URL if different
-  const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com/api/recommendations";
+  const API_BASE_URL = "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com//api/recommend";
 
   useEffect(() => {
     const fetchRecommendations = async () => {
