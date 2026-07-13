@@ -9,9 +9,11 @@ import { toast } from "react-toastify";
 export default function Checkout() {
     const navigate = useNavigate();
 
-    // Contexts (adjust names if yours differ)
+    // Contexts
     const shop = useContext(ShopDataContext);
-    const auth = useAuth ? useAuth() : null;
+    
+    // FIX 1: Do not conditionally call hooks. Just call it directly.
+    const auth = useAuth(); 
 
     // -- derive values safely
     const cart = shop?.cart || [];
@@ -19,8 +21,6 @@ export default function Checkout() {
     const currency = shop?.currency ?? "₹";
     const getCartData = shop?.getCartData ?? (() => Promise.resolve());
 
-    // API_BASE_URL should contain only the domain (e.g., https://...onrender.com)
-    // The specific API path prefix (/api/v1/auth or /api/order) is added in the makeUrl helper below.
     const API_BASE_URL = (auth && auth.API_BASE_URL) || process.env.REACT_APP_API_BASE_URL || "https://ai-powered-e-commerce-website-backend-j6vz.onrender.com";
 
     const user = (auth && auth.user) || null;
@@ -40,15 +40,15 @@ export default function Checkout() {
     };
 
     const [shippingAddress, setShippingAddress] = useState(initialAddress);
-    const [paymentMethod, setPaymentMethod] = useState("COD"); // COD or Online
+    const [paymentMethod, setPaymentMethod] = useState("COD"); 
     const [isFormOpen, setIsFormOpen] = useState(true);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [error, setError] = useState("");
 
-    // helper: build endpoint URL
-    const makeUrl = (path) => {
+    // FIX 2: Wrapped in useCallback to prevent infinite loop in useEffect
+    const makeUrl = useCallback((path) => {
         return `${API_BASE_URL.replace(/\/+$/, "")}${path.replace(/^\/*/, "/")}`;
-    };
+    }, [API_BASE_URL]);
 
     const isAddressComplete = useCallback(() => {
         return Object.values(shippingAddress).every((v) => typeof v === "string" && v.trim() !== "");
@@ -59,8 +59,6 @@ export default function Checkout() {
         let mounted = true;
         const loadAddress = async () => {
             try {
-                // 🚀 FIX APPLIED HERE: Changed endpoint from "/api/v1/auth" 
-                // to "/api/v1/auth/current-user" to match your backend route.
                 const url = makeUrl("/api/v1/auth/current-user");
                 const token = localStorage.getItem("token");
                 const opts = token
@@ -70,9 +68,11 @@ export default function Checkout() {
                 const res = await fetch(url, { method: "GET", ...opts });
                 if (!mounted) return;
                 if (!res.ok) return;
+                
                 const body = await res.json();
                 const addr = body?.data?.address || body?.address || body?.data || body;
-                if (addr && typeof addr === "object") {
+                
+                if (addr && typeof addr === "object" && Object.keys(addr).length > 0) {
                     setShippingAddress((s) => ({ ...s, ...addr }));
                     setIsFormOpen(false);
                 }
@@ -82,16 +82,14 @@ export default function Checkout() {
         };
 
         if (!loadingUser) loadAddress();
+        
         return () => { mounted = false; };
-    }, [API_BASE_URL, loadingUser, makeUrl]);
+    }, [API_BASE_URL, loadingUser, makeUrl]); // makeUrl is now safe to include here
 
     // Save address to backend for reuse
     const saveAddressToServer = async (address) => {
-        // NOTE: If you save the address by POSTing to the current user profile, 
-        // this endpoint may also need to be adjusted to /api/v1/auth/current-user 
-        // if POSTing to the base route /api/v1/auth isn't supported.
         try {
-            const url = makeUrl("/api/v1/auth"); // Keeping this as-is for now, assuming your POST route is flexible
+            const url = makeUrl("/api/v1/auth"); 
             const token = localStorage.getItem("token");
             const opts = token
                 ? {
@@ -150,7 +148,6 @@ export default function Checkout() {
             const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
             if (paymentMethod === "COD") {
-                // Ensure this path matches the order route: POST /api/order/place
                 const res = await fetch(makeUrl("/api/order/place"), {
                     method: "POST",
                     credentials: token ? undefined : "include",
@@ -167,11 +164,9 @@ export default function Checkout() {
                     throw new Error(body?.message || `Failed to place order (status ${res.status})`);
                 }
 
-                // Clear client cart (if you have a context method)
                 if (typeof getCartData === "function") await getCartData();
 
-                toast && toast("Order placed successfully");
-                // COD NAVIGATION: This already redirects to /order/success/:orderId
+                toast.success("Order placed successfully");
                 navigate(`/order/success/${body?.data?._id ?? ""}`);
                 return;
             }
@@ -182,7 +177,6 @@ export default function Checkout() {
                 throw new Error("Failed to load payment gateway. Try again later.");
             }
 
-            // Ensure this path matches the order route: POST /api/order/place/razorpay
             const res = await fetch(makeUrl("/api/order/place/razorpay"), {
                 method: "POST",
                 credentials: token ? undefined : "include",
@@ -193,21 +187,18 @@ export default function Checkout() {
                 }),
             });
 
-            // Store initial Razorpay response (which should contain the order ID)
             const razorpayBody = await (res.headers.get("content-type")?.includes("application/json") ? res.json() : Promise.resolve({ message: "Unknown error" }));
             if (!res.ok) {
                 throw new Error(razorpayBody?.message || `Failed to initiate payment (status ${res.status})`);
             }
 
-            const tempOrderId = razorpayBody?.data?._id; // Initial Order ID from Razorpay setup
-
-            // body.data must include { key, amount, razorpayOrderId, currency }
+            const tempOrderId = razorpayBody?.data?._id; 
             const { key, amount, razorpayOrderId, currency: respCurrency } = razorpayBody.data || {};
+            
             if (!key || !amount || !razorpayOrderId) {
                 throw new Error("Payment initiation failed (invalid server response)");
             }
 
-            // Open Razorpay checkout
             const options = {
                 key,
                 amount,
@@ -216,9 +207,7 @@ export default function Checkout() {
                 description: "Order Payment",
                 order_id: razorpayOrderId,
                 handler: async function (response) {
-                    // This function executes only on SUCCESSFUL PAYMENT
                     try {
-                        // Using the same endpoint for verification/completion
                         const verifyRes = await fetch(makeUrl("/api/order/place/razorpay"), {
                             method: "POST",
                             credentials: token ? undefined : "include",
@@ -231,29 +220,22 @@ export default function Checkout() {
                             throw new Error(verifyBody?.message || `Payment verification failed (status ${verifyRes.status})`);
                         }
 
-                        // payment verified — clear cart
                         if (typeof getCartData === "function") await getCartData();
 
-                        toast && toast.success ? toast.success("Payment successful — Order confirmed") : toast("Payment successful — Order confirmed");
+                        toast.success("Payment successful — Order confirmed");
 
-                        // ✅ ONLINE PAYMENT NAVIGATION: Get final Order ID and redirect
-                    const finalOrderId = verifyBody?.data?._id || tempOrderId || "";
-                
-                // Ensure navigate redirects to your specified route: /order/success/:orderId
-                navigate(`/order/success/${finalOrderId}`);
+                        const finalOrderId = verifyBody?.data?._id || tempOrderId || "";
+                        navigate(`/order/success/${finalOrderId}`);
 
                     } catch (err) {
                         console.error("Payment verification error:", err);
-                        toast && toast.error ? toast.error(err.message || "Payment verification failed") : null;
+                        toast.error(err.message || "Payment verification failed");
                     }
                 },
                 prefill: {
                     name: user?.name || shippingAddress.fullName || "",
                     email: user?.email || "",
                     contact: shippingAddress.phone || "",
-                },
-                notes: {
-                    // optional notes
                 },
                 theme: {
                     color: "#fd7f20",
@@ -263,7 +245,7 @@ export default function Checkout() {
             const rzp = new window.Razorpay(options);
             rzp.on("payment.failed", function (response) {
                 console.error("Razorpay payment failed:", response);
-                toast && toast.error ? toast.error("Payment failed or cancelled") : null;
+                toast.error("Payment failed or cancelled");
             });
             rzp.open();
         } catch (err) {
